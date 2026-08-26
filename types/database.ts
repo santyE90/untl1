@@ -14,6 +14,297 @@ export type Database = {
   }
   public: {
     Tables: {
+      finance_accounts: {
+        Row: {
+          account_type: string
+          archived_at: string | null
+          created_at: string
+          credit_limit: number | null
+          currency: string
+          custom_type_name: string | null
+          id: string
+          include_in_net_worth: boolean
+          institution: string | null
+          name: string
+          opening_balance: number
+          opening_balance_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_type: string
+          archived_at?: string | null
+          created_at?: string
+          credit_limit?: number | null
+          currency?: string
+          custom_type_name?: string | null
+          id?: string
+          include_in_net_worth?: boolean
+          institution?: string | null
+          name: string
+          opening_balance?: number
+          opening_balance_date?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_type?: string
+          archived_at?: string | null
+          created_at?: string
+          credit_limit?: number | null
+          currency?: string
+          custom_type_name?: string | null
+          id?: string
+          include_in_net_worth?: boolean
+          institution?: string | null
+          name?: string
+          opening_balance?: number
+          opening_balance_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_accounts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finance_categories: {
+        Row: {
+          archived_at: string | null
+          category_type: string
+          created_at: string
+          default_key: string | null
+          display_color: string | null
+          icon: string | null
+          id: string
+          is_default: boolean
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          category_type: string
+          created_at?: string
+          default_key?: string | null
+          display_color?: string | null
+          icon?: string | null
+          id?: string
+          is_default?: boolean
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          category_type?: string
+          created_at?: string
+          default_key?: string | null
+          display_color?: string | null
+          icon?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_categories_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finance_transactions: {
+        Row: {
+          account_id: string
+          amount: number
+          category_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          kind: string
+          merchant: string | null
+          notes: string | null
+          recurring_bill_id: string | null
+          recurring_income_id: string | null
+          status: string
+          transaction_date: string
+          transfer_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          kind: string
+          merchant?: string | null
+          notes?: string | null
+          recurring_bill_id?: string | null
+          recurring_income_id?: string | null
+          status?: string
+          transaction_date: string
+          transfer_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          kind?: string
+          merchant?: string | null
+          notes?: string | null
+          recurring_bill_id?: string | null
+          recurring_income_id?: string | null
+          status?: string
+          transaction_date?: string
+          transfer_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_transactions_account_owner_fk"
+            columns: ["account_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "finance_account_balances"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "finance_transactions_account_owner_fk"
+            columns: ["account_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "finance_accounts"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "finance_transactions_bill_owner_fk"
+            columns: ["recurring_bill_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_bills"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "finance_transactions_category_owner_fk"
+            columns: ["category_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "finance_categories"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "finance_transactions_income_owner_fk"
+            columns: ["recurring_income_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_income"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "finance_transactions_transfer_owner_fk"
+            columns: ["transfer_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "finance_transfers"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "finance_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finance_transfers: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          description: string | null
+          destination_account_id: string
+          id: string
+          notes: string | null
+          source_account_id: string
+          transfer_date: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency: string
+          description?: string | null
+          destination_account_id: string
+          id?: string
+          notes?: string | null
+          source_account_id: string
+          transfer_date: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          description?: string | null
+          destination_account_id?: string
+          id?: string
+          notes?: string | null
+          source_account_id?: string
+          transfer_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_transfers_destination_owner_fk"
+            columns: ["destination_account_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "finance_account_balances"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "finance_transfers_destination_owner_fk"
+            columns: ["destination_account_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "finance_accounts"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "finance_transfers_source_owner_fk"
+            columns: ["source_account_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "finance_account_balances"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "finance_transfers_source_owner_fk"
+            columns: ["source_account_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "finance_accounts"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "finance_transfers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -44,12 +335,207 @@ export type Database = {
         }
         Relationships: []
       }
+      recurring_bills: {
+        Row: {
+          account_id: string
+          anchor_date: string
+          autopay: boolean
+          category_id: string
+          created_at: string
+          currency: string
+          expected_amount: number
+          frequency: string
+          id: string
+          is_active: boolean
+          name: string
+          next_due_date: string
+          reminder_days: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          anchor_date: string
+          autopay?: boolean
+          category_id: string
+          created_at?: string
+          currency?: string
+          expected_amount: number
+          frequency: string
+          id?: string
+          is_active?: boolean
+          name: string
+          next_due_date: string
+          reminder_days?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          anchor_date?: string
+          autopay?: boolean
+          category_id?: string
+          created_at?: string
+          currency?: string
+          expected_amount?: number
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          next_due_date?: string
+          reminder_days?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_bills_account_owner_fk"
+            columns: ["account_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "finance_account_balances"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "recurring_bills_account_owner_fk"
+            columns: ["account_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "finance_accounts"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "recurring_bills_category_owner_fk"
+            columns: ["category_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "finance_categories"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "recurring_bills_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recurring_income: {
+        Row: {
+          anchor_date: string
+          category_id: string | null
+          created_at: string
+          currency: string
+          destination_account_id: string
+          expected_amount: number
+          frequency: string
+          id: string
+          is_active: boolean
+          name: string
+          next_payday: string
+          reminder_days: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          anchor_date: string
+          category_id?: string | null
+          created_at?: string
+          currency?: string
+          destination_account_id: string
+          expected_amount: number
+          frequency: string
+          id?: string
+          is_active?: boolean
+          name: string
+          next_payday: string
+          reminder_days?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          anchor_date?: string
+          category_id?: string | null
+          created_at?: string
+          currency?: string
+          destination_account_id?: string
+          expected_amount?: number
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          next_payday?: string
+          reminder_days?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_income_account_owner_fk"
+            columns: ["destination_account_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "finance_account_balances"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "recurring_income_account_owner_fk"
+            columns: ["destination_account_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "finance_accounts"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "recurring_income_category_owner_fk"
+            columns: ["category_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "finance_categories"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "recurring_income_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      finance_account_balances: {
+        Row: {
+          account_type: string | null
+          archived_at: string | null
+          currency: string | null
+          current_balance: number | null
+          id: string | null
+          include_in_net_worth: boolean | null
+          name: string | null
+          opening_balance: number | null
+          opening_balance_date: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_accounts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
-      [_ in never]: never
+      create_finance_transfer: {
+        Args: {
+          destination_account: string
+          occurred_on: string
+          source_account: string
+          transfer_amount: number
+          transfer_description?: string
+          transfer_notes?: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

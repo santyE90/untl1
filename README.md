@@ -1,31 +1,27 @@
 # Life Organizer
 
-Life Organizer is a responsive personal life-management platform that will connect finances, calendar events, school, tasks, goals, analytics, notifications, and a controlled AI assistant.
+Life Organizer is a responsive personal-management application built with Next.js 16 and Supabase. The working application includes public email/password authentication, private profiles, a responsive app shell, and Finance Core: accounts, exact derived balances, categorized transactions, atomic transfers, and recurring bill/payday schedules.
 
-The current milestone provides the visual foundation, public email/password registration, Supabase cookie-based sessions, protected application routes, a responsive navigation shell, and an honest empty-state dashboard. Finance and the other product modules are intentionally not implemented yet.
+[docs/project-architecture.md](docs/project-architecture.md) is the detailed source of truth for schema decisions, ledger semantics, security boundaries, and roadmap.
 
-See [docs/project-architecture.md](docs/project-architecture.md) for the detailed product direction, architecture, schema plan, security model, and roadmap.
+## Stack
 
-## Technology
+- Next.js 16 App Router, React 19, strict TypeScript
+- Tailwind CSS 4 and shadcn/Base UI
+- Supabase Auth and PostgreSQL with RLS
+- Zod, Vitest, Supabase migrations, and pgTAP tests
 
-- Next.js 16 App Router, React 19, and TypeScript
-- Tailwind CSS 4 and shadcn/ui Vega components
-- Supabase Auth and PostgreSQL with Row Level Security
-- Zod validation and Vitest
-- Recharts, Lucide, and the OpenAI SDK for later milestones
+No OpenAI requests are made. The AI SDK/key remain reserved for a later approved milestone.
 
-No OpenAI request is made by the current application.
+## Local setup
 
-## Requirements
+Requirements: Node.js supported by Next.js 16, npm, and a Supabase project. Docker Desktop is required only for the optional local Supabase stack/database tests.
 
-- Node.js compatible with Next.js 16
-- npm
-- A Supabase project
-- Docker Desktop only if using the optional local Supabase stack
+```bash
+npm install
+```
 
-## Environment setup
-
-Copy `.env.example` to `.env.local` and replace the placeholders:
+Copy `.env.example` to `.env.local` and set:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
@@ -34,61 +30,42 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 OPENAI_API_KEY=
 ```
 
-`NEXT_PUBLIC_SUPABASE_URL` and the publishable key are intentionally browser-visible. Database grants and RLS protect private data. `OPENAI_API_KEY` is server-only and should remain blank until the AI milestone.
-
-Never commit `.env.local` or real credentials.
-
-## Hosted Supabase setup
-
-The repository contains the migration, but it is not automatically applied to the hosted project.
-
-### Apply the migration
-
-Choose one method:
-
-1. Open the Supabase SQL Editor and run the complete contents of `supabase/migrations/20260826000100_create_profiles.sql`.
-2. Or link the CLI and push the migration:
+The Supabase URL must be the project origin only, with no `/rest/v1` suffix. Never commit `.env.local` or real credentials.
 
 ```bash
-npx supabase login
-npx supabase link --project-ref YOUR_PROJECT_REF
-npm run db:push
-```
-
-The migration creates the private `profiles` table, fixed defaults, signup trigger, least-privilege grants, RLS policies, and audit timestamp behavior. Existing Auth users are backfilled.
-
-### Configure authentication
-
-In the Supabase dashboard:
-
-1. Under Authentication → Providers → Email, keep email/password enabled and public signup enabled.
-2. Keep email confirmation enabled for the hosted project.
-3. Under Authentication → URL Configuration:
-   - Set the development Site URL to `http://localhost:3000`.
-   - Add `http://localhost:3000/auth/confirm` to Redirect URLs.
-   - When deployed, add the production origin and `https://your-domain/auth/confirm` as well.
-4. The default confirmation template works with the `/auth/confirm` code-exchange endpoint. If the project uses custom SMTP and you want a direct token-hash link, you may optionally change Authentication → Email Templates → Confirm signup to:
-
-```html
-<a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email">Confirm your email</a>
-```
-
-The default hosted email service is suitable only for limited development testing. Configure production SMTP before inviting real users broadly. Custom template editing may require custom SMTP depending on the Supabase plan.
-
-After applying the hosted migration and linking the CLI, regenerate committed database types:
-
-```bash
-npm run db:types:linked
-```
-
-## Run the application
-
-```bash
-npm install
 npm run dev
 ```
 
 Open <http://localhost:3000>.
+
+## Hosted Supabase migrations
+
+Hosted migrations are never applied automatically. The linked CLI should show the accepted profiles migration and the pending Finance migration:
+
+```text
+supabase/migrations/20260826000100_create_profiles.sql
+supabase/migrations/20260826000200_finance_core.sql
+```
+
+For Finance Phase 2A, inspect the pending migration and run:
+
+```bash
+npm run db:push
+npm run db:types:linked
+```
+
+Confirm the push prompt lists only `20260826000200_finance_core.sql`. The second command replaces `types/database.ts` with hosted generated types after the schema exists. No additional Supabase dashboard settings are required for Finance.
+
+If SQL Editor is preferred, run the entire Finance migration there, then repair/confirm CLI migration history before a future `db:push`; do not let the CLI reapply the same SQL.
+
+The Finance migration creates:
+
+- owned accounts and per-user seeded categories;
+- auditable signed transactions and soft-void behavior;
+- an immutable transfer header plus authenticated atomic transfer function;
+- recurring bill and income templates;
+- the security-invoker derived-balance view;
+- composite ownership constraints, indexes, least-privilege grants, and RLS.
 
 ## Quality commands
 
@@ -97,17 +74,10 @@ npm run lint
 npm run typecheck
 npm run test
 npm run build
-```
-
-Run the complete application check with:
-
-```bash
 npm run check
 ```
 
-## Local Supabase workflow
-
-With Docker Desktop running:
+With Docker Desktop running, the optional local database workflow is:
 
 ```bash
 npm run db:start
@@ -117,44 +87,40 @@ npm run db:types:local
 npm run db:stop
 ```
 
-`db:reset` recreates the local database from migrations. `db:test` runs the pgTAP isolation suite under `supabase/tests/database`. Local Auth emails are captured by Mailpit; `npx supabase status` prints its URL and the local API credentials.
-
-Do not assume local migrations have affected the hosted project. Hosted changes require `db:push` after linking or an explicit SQL Editor run.
+`db:test` runs profile and Finance pgTAP isolation tests. A local reset affects only the local Supabase stack, never the hosted database.
 
 ## Repository map
 
 ```text
 app/                 routes, layouts, and HTTP boundaries
-components/          shared and shadcn UI
-features/            feature-owned actions, schemas, services, and UI
-lib/                 auth, environment, and Supabase infrastructure
-supabase/migrations/ versioned database changes
-supabase/tests/      pgTAP database and RLS tests
-types/database.ts    generated Supabase database types
+components/          app shell and shared UI
+features/finance/    Finance actions, queries, validation, exact money, recurrence, UI
+lib/                 authentication and Supabase infrastructure
+supabase/migrations/ ordered schema history
+supabase/tests/      pgTAP security/isolation suites
+types/database.ts    generated database types
 docs/                durable architecture and project decisions
 ```
 
 ## Current security boundaries
 
-- The Next.js proxy refreshes sessions and performs optimistic redirects.
-- Protected layouts and every mutation independently verify identity.
-- Server Actions validate untrusted form inputs with Zod.
-- Post-login redirect values are restricted to known internal protected routes.
-- PostgreSQL grants and RLS enforce profile ownership.
-- The browser never receives a service-role key or OpenAI key.
+- Every protected route and Server Action verifies the session.
+- Server Actions validate untrusted input and derive ownership from the session.
+- RLS and composite ownership foreign keys prevent cross-user reads and references.
+- Authenticated column grants protect owner IDs, audit fields, and opening balances.
+- Transfers can only be created by one narrowly scoped atomic database function.
+- Financial records are archived, paused, or voided instead of destructively deleted.
+- The browser receives no service-role or OpenAI secret.
 
-## Current scope
+## Scope
 
-Implemented:
+Implemented through Finance Core Phase 2A:
 
-- Landing, signup, login, email confirmation, logout, and protected sessions
-- Responsive desktop and mobile authenticated navigation
-- Dashboard and honest upcoming-module placeholders
-- Profiles migration, RLS policies, database isolation tests, and type workflow
-- Semantic light-theme tokens with a future dark-theme contract
+- signup, email confirmation, login/logout, protected sessions, and profiles;
+- responsive desktop/mobile application shell;
+- accounts, default/custom categories, transaction create/read/update/void;
+- atomic same-currency transfers and exact derived balances;
+- recurring bill and income/payday templates;
+- application unit tests and database RLS test files.
 
-Not implemented:
-
-- Finance, calendar, school, tasks, goals, analytics, notifications, or AI behavior
-- Password reset, magic links, social login, or MFA
-- Production email delivery
+Deferred until later approval: budgeting, advanced analytics, forecasting, receipt OCR, bank imports, Calendar, School, Tasks, Goals, AI, Python/ML, and notification delivery.

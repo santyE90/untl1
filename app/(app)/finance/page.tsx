@@ -1,10 +1,72 @@
 import type { Metadata } from "next";
-import { WalletCards } from "lucide-react";
+import Link from "next/link";
+import { ArrowDownLeft, ArrowRightLeft, ArrowUpRight, CalendarClock, Landmark, Plus, ReceiptText, WalletCards } from "lucide-react";
 
-import { UpcomingSection } from "@/components/app-shell/upcoming-section";
+import { archiveAccount, setBillActive, setIncomeActive, voidTransaction } from "@/features/finance/actions";
+import { AccountForm, BillForm, CategoryForm, IncomeForm, TransactionForm, TransferForm } from "@/features/finance/finance-forms";
+import { addMoney, formatMoney } from "@/features/finance/money";
+import { getFinanceOverview } from "@/features/finance/queries";
 
 export const metadata: Metadata = { title: "Finance" };
+export const dynamic = "force-dynamic";
 
-export default function FinancePage() {
-  return <UpcomingSection description="Accounts, transactions, transfers, recurring bills, and budgets will be implemented in the Finance milestones." icon={WalletCards} title="Finance" />;
+const panel = "rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6";
+const detail = "group rounded-xl border border-border bg-background open:bg-card";
+const summary = "flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold marker:hidden";
+
+function titleCase(value: string) {
+  return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+export default async function FinancePage({ searchParams }: { searchParams: Promise<{ error?: string; success?: string }> }) {
+  const notice = await searchParams;
+  const data = await getFinanceOverview();
+  const activeAccounts = data.accounts.filter((account) => !account.archivedAt);
+  const totals = new Map<string, bigint>();
+  for (const account of activeAccounts.filter((item) => item.includeInNetWorth)) {
+    totals.set(account.currency, addMoney([totals.get(account.currency) ?? BigInt(0), account.currentBalance]));
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  const hasData = data.accounts.length > 0;
+
+  return <div className="space-y-8">
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div><p className="text-sm font-semibold text-primary">Finance Core</p><h1 className="mt-1 text-3xl font-bold tracking-tight">Your financial ledger</h1><p className="mt-2 max-w-2xl text-sm text-muted-foreground">Exact balances from opening values and posted activity. No fabricated insights and no hidden balance overrides.</p></div>
+      <nav className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-border bg-card p-1 text-sm" aria-label="Finance sections">
+        <a className="rounded-lg px-3 py-2 hover:bg-muted" href="#accounts">Accounts</a><a className="rounded-lg px-3 py-2 hover:bg-muted" href="#transactions">Transactions</a><a className="rounded-lg px-3 py-2 hover:bg-muted" href="#recurring">Recurring</a>
+      </nav>
+    </header>
+
+    {notice.error ? <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{notice.error}</p> : null}
+    {notice.success ? <p role="status" className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">{notice.success}</p> : null}
+
+    {!hasData ? <section className={`${panel} overflow-hidden bg-gradient-to-br from-card to-accent/40`}>
+      <div className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground"><WalletCards /></div>
+      <h2 className="mt-5 text-xl font-bold">Start with a trustworthy opening point</h2>
+      <p className="mt-2 max-w-xl text-sm text-muted-foreground">Create your first account and record the balance on a known date. Every posted entry after that date will explain the balance.</p>
+      <ol className="mt-5 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4"><li className="rounded-xl bg-background p-4"><b>1.</b> Create an account</li><li className="rounded-xl bg-background p-4"><b>2.</b> Set its opening balance</li><li className="rounded-xl bg-background p-4"><b>3.</b> Add a transaction</li><li className="rounded-xl bg-background p-4"><b>4.</b> Add a bill or payday</li></ol>
+    </section> : null}
+
+    <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <article className={panel}><div className="flex items-center gap-2 text-sm text-muted-foreground"><Landmark className="size-4" /> Included balances</div><div className="mt-3 space-y-1">{totals.size ? [...totals].map(([currency, amount]) => <p className="text-2xl font-bold" key={currency}>{formatMoney(amount, currency)}</p>) : <p className="text-sm text-muted-foreground">No active included accounts yet.</p>}</div></article>
+      <article className={panel}><div className="flex items-center gap-2 text-sm text-muted-foreground"><CalendarClock className="size-4" /> Upcoming bill</div>{data.bills.find((bill) => bill.is_active) ? (() => { const bill = data.bills.find((item) => item.is_active)!; return <><p className="mt-3 font-bold">{bill.name}</p><p className="text-sm text-muted-foreground">{formatMoney(bill.expected_amount, bill.currency)} · {bill.next_due_date}</p></>; })() : <p className="mt-3 text-sm text-muted-foreground">No active bill schedules.</p>}</article>
+      <article className={panel}><div className="flex items-center gap-2 text-sm text-muted-foreground"><ArrowDownLeft className="size-4" /> Next payday</div>{data.income.find((item) => item.is_active) ? (() => { const item = data.income.find((income) => income.is_active)!; return <><p className="mt-3 font-bold">{item.name}</p><p className="text-sm text-muted-foreground">{formatMoney(item.expected_amount, item.currency)} · {item.next_payday}</p></>; })() : <p className="mt-3 text-sm text-muted-foreground">No active income schedules.</p>}</article>
+    </section>
+
+    <section className="space-y-4" id="accounts"><div><h2 className="text-xl font-bold">Accounts</h2><p className="text-sm text-muted-foreground">Archived accounts keep their full history and derived balance.</p></div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{data.accounts.map((account) => <article className={`${panel} ${account.archivedAt ? "opacity-65" : ""}`} key={account.id}><div className="flex items-start justify-between gap-3"><div><h3 className="font-bold">{account.name}</h3><p className="text-xs text-muted-foreground">{titleCase(account.accountType)} · {account.currency}{account.archivedAt ? " · Archived" : ""}</p></div><WalletCards className="size-5 text-primary" /></div><p className={`mt-5 text-2xl font-bold ${account.currentBalance.startsWith("-") ? "text-financial-negative" : ""}`}>{formatMoney(account.currentBalance, account.currency)}</p><p className="mt-1 text-xs text-muted-foreground">Derived since {account.openingBalanceDate}</p>{!account.archivedAt ? <form action={archiveAccount} className="mt-4"><input type="hidden" name="id" value={account.id} /><button className="text-xs font-semibold text-muted-foreground hover:text-destructive">Archive account</button></form> : null}</article>)}</div>
+      <details className={detail} open={!hasData}><summary className={summary}><span className="flex items-center gap-2"><Plus className="size-4" /> Add account</span><span className="text-muted-foreground group-open:rotate-45">+</span></summary><div className="border-t border-border p-4"><AccountForm today={today} /></div></details>
+      <details className={detail}><summary className={summary}>Create a custom category <span className="text-muted-foreground group-open:rotate-45">+</span></summary><div className="border-t border-border p-4"><CategoryForm /></div></details>
+    </section>
+
+    <section className="space-y-4" id="transactions"><div><h2 className="text-xl font-bold">Transactions</h2><p className="text-sm text-muted-foreground">Expenses decrease an account, income increases it, and voided rows remain auditable.</p></div>
+      {activeAccounts.length ? <div className="grid gap-3 lg:grid-cols-2"><details className={detail}><summary className={summary}><span className="flex items-center gap-2"><ReceiptText className="size-4" /> Add transaction</span><span>+</span></summary><div className="border-t border-border p-4"><TransactionForm accounts={data.accounts} categories={data.categories} today={today} /></div></details><details className={detail}><summary className={summary}><span className="flex items-center gap-2"><ArrowRightLeft className="size-4" /> Move between accounts</span><span>+</span></summary><div className="border-t border-border p-4"><TransferForm accounts={data.accounts} today={today} /></div></details></div> : <p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">Create an account before recording activity.</p>}
+      <div className="overflow-hidden rounded-2xl border border-border bg-card"><div className="divide-y divide-border">{data.transactions.length ? data.transactions.map((transaction) => <article className={`flex items-center gap-3 p-4 ${transaction.status === "void" ? "opacity-50" : ""}`} key={transaction.id}><div className={`flex size-9 shrink-0 items-center justify-center rounded-full ${transaction.amount.startsWith("-") ? "bg-destructive/10 text-financial-negative" : "bg-success/10 text-financial-positive"}`}>{transaction.amount.startsWith("-") ? <ArrowUpRight className="size-4" /> : <ArrowDownLeft className="size-4" />}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{transaction.merchant || transaction.description || titleCase(transaction.kind)}</p><p className="truncate text-xs text-muted-foreground">{transaction.accountName}{transaction.categoryName ? ` · ${transaction.categoryName}` : " · Transfer"} · {transaction.transaction_date}{transaction.status === "void" ? " · Voided" : ""}</p></div><p className={`text-sm font-bold ${transaction.amount.startsWith("-") ? "text-financial-negative" : "text-financial-positive"}`}>{formatMoney(transaction.amount, data.accounts.find((account) => account.id === transaction.account_id)?.currency ?? "CAD")}</p>{transaction.kind !== "transfer" && transaction.status !== "void" ? <div className="flex gap-2"><Link className="text-xs font-semibold text-primary" href={`/finance/transactions/${transaction.id}/edit`}>Edit</Link><form action={voidTransaction}><input type="hidden" name="id" value={transaction.id} /><button className="text-xs font-semibold text-destructive">Void</button></form></div> : null}</article>) : <p className="p-6 text-sm text-muted-foreground">No transactions yet. Your first posted entry will appear here.</p>}</div></div>
+    </section>
+
+    <section className="space-y-4" id="recurring"><div><h2 className="text-xl font-bold">Recurring schedule</h2><p className="text-sm text-muted-foreground">These are authoritative templates only; they do not create future ledger rows.</p></div>
+      {activeAccounts.length ? <div className="grid gap-3 lg:grid-cols-2"><details className={detail}><summary className={summary}>Add recurring bill <span>+</span></summary><div className="border-t border-border p-4"><BillForm accounts={data.accounts} categories={data.categories} today={today} /></div></details><details className={detail}><summary className={summary}>Add recurring income <span>+</span></summary><div className="border-t border-border p-4"><IncomeForm accounts={data.accounts} categories={data.categories} today={today} /></div></details></div> : null}
+      <div className="grid gap-4 lg:grid-cols-2"><div className={panel}><h3 className="font-bold">Bills</h3><div className="mt-3 divide-y divide-border">{data.bills.length ? data.bills.map((bill) => <div className="flex items-center gap-3 py-3" key={bill.id}><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{bill.name}</p><p className="text-xs text-muted-foreground">{bill.next_due_date} · {titleCase(bill.frequency)} · {bill.accountName}</p></div><p className="text-sm font-bold">{formatMoney(bill.expected_amount, bill.currency)}</p><form action={setBillActive}><input type="hidden" name="id" value={bill.id} /><input type="hidden" name="active" value={String(!bill.is_active)} /><button className="text-xs font-semibold text-primary">{bill.is_active ? "Pause" : "Resume"}</button></form></div>) : <p className="py-4 text-sm text-muted-foreground">No recurring bills.</p>}</div></div><div className={panel}><h3 className="font-bold">Income & paydays</h3><div className="mt-3 divide-y divide-border">{data.income.length ? data.income.map((item) => <div className="flex items-center gap-3 py-3" key={item.id}><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{item.name}</p><p className="text-xs text-muted-foreground">{item.next_payday} · {titleCase(item.frequency)} · {item.accountName}</p></div><p className="text-sm font-bold text-financial-positive">{formatMoney(item.expected_amount, item.currency)}</p><form action={setIncomeActive}><input type="hidden" name="id" value={item.id} /><input type="hidden" name="active" value={String(!item.is_active)} /><button className="text-xs font-semibold text-primary">{item.is_active ? "Pause" : "Resume"}</button></form></div>) : <p className="py-4 text-sm text-muted-foreground">No recurring income.</p>}</div></div></div>
+    </section>
+  </div>;
 }
