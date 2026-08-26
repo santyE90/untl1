@@ -1,0 +1,2 @@
+-- Add development-only seed data here when a feature milestone requires it.
+-- Never put production credentials or personal data in this file.
