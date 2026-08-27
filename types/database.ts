@@ -14,6 +14,113 @@ export type Database = {
   }
   public: {
     Tables: {
+      calendar_event_reminders: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          offset_minutes: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          offset_minutes: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          offset_minutes?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_event_reminders_owner_fk"
+            columns: ["event_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "calendar_event_reminders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_events: {
+        Row: {
+          all_day: boolean
+          archived_at: string | null
+          created_at: string
+          description: string | null
+          end_date: string | null
+          ends_at: string | null
+          event_type: string | null
+          id: string
+          location: string | null
+          recurrence_frequency: string | null
+          recurrence_timezone: string | null
+          recurrence_until: string | null
+          start_date: string | null
+          starts_at: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          all_day?: boolean
+          archived_at?: string | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          ends_at?: string | null
+          event_type?: string | null
+          id?: string
+          location?: string | null
+          recurrence_frequency?: string | null
+          recurrence_timezone?: string | null
+          recurrence_until?: string | null
+          start_date?: string | null
+          starts_at?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          all_day?: boolean
+          archived_at?: string | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          ends_at?: string | null
+          event_type?: string | null
+          id?: string
+          location?: string | null
+          recurrence_frequency?: string | null
+          recurrence_timezone?: string | null
+          recurrence_until?: string | null
+          start_date?: string | null
+          starts_at?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       finance_accounts: {
         Row: {
           account_type: string
@@ -400,6 +507,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          calendar_default_view: string
           created_at: string
           currency: string
           display_name: string | null
@@ -409,6 +517,7 @@ export type Database = {
           week_starts_on: number
         }
         Insert: {
+          calendar_default_view?: string
           created_at?: string
           currency?: string
           display_name?: string | null
@@ -418,6 +527,7 @@ export type Database = {
           week_starts_on?: number
         }
         Update: {
+          calendar_default_view?: string
           created_at?: string
           currency?: string
           display_name?: string | null
@@ -628,6 +738,10 @@ export type Database = {
           transfer_notes?: string
         }
         Returns: string
+      }
+      save_calendar_event_reminders: {
+        Args: { reminder_offsets?: number[]; target_event_id: string }
+        Returns: undefined
       }
       save_monthly_finance_budget: {
         Args: {

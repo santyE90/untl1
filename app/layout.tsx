@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Life Organizer",
-    template: "%s | Life Organizer",
+    default: "LifeStack",
+    template: "%s | LifeStack",
   },
   description:
     "A private, connected home for your finances, schedule, school, tasks, and goals.",

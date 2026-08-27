@@ -1,5 +1,6 @@
 import type { DateRange } from "./date-ranges";
 import type { Frequency } from "./recurrence";
+import { advanceAnchoredDate } from "../shared/recurrence";
 
 export type RecurringProjectionSource = {
   id: string;
@@ -25,26 +26,8 @@ function parseDate(value: string) {
   return date;
 }
 
-function iso(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function clampedDate(year: number, month: number, day: number) {
-  const lastDay = new Date(Date.UTC(year, month + 1, 0, 12)).getUTCDate();
-  return new Date(Date.UTC(year, month, Math.min(day, lastDay), 12));
-}
-
 export function advanceAnchoredOccurrence(currentDate: string, frequency: Frequency, anchorDate: string): string {
-  const current = parseDate(currentDate);
-  const anchor = parseDate(anchorDate);
-  if (frequency === "weekly" || frequency === "biweekly") {
-    current.setUTCDate(current.getUTCDate() + (frequency === "weekly" ? 7 : 14));
-    return iso(current);
-  }
-  if (frequency === "monthly") {
-    return iso(clampedDate(current.getUTCFullYear(), current.getUTCMonth() + 1, anchor.getUTCDate()));
-  }
-  return iso(clampedDate(current.getUTCFullYear() + 1, anchor.getUTCMonth(), anchor.getUTCDate()));
+  return advanceAnchoredDate(currentDate, frequency, anchorDate);
 }
 
 export function expandRecurringSchedule(source: RecurringProjectionSource, range: DateRange, recordedOccurrenceIds = new Set<string>()): RecurringOccurrence[] {

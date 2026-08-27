@@ -9,7 +9,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="w-full max-w-md">
         <Link className="mb-8 flex items-center justify-center gap-3" href="/">
           <BrandMark />
-          <span className="text-lg font-semibold tracking-tight">Life Organizer</span>
+          <span className="text-lg font-semibold tracking-tight">LifeStack</span>
         </Link>
         <section className="rounded-2xl border bg-card p-6 shadow-[0_18px_60px_rgba(70,45,78,0.10)] sm:p-8">{children}</section>
       </div>

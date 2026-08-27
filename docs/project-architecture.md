@@ -1,16 +1,16 @@
-# Life Organizer: Project Architecture
+# LifeStack: Project Architecture
 
-Status: Finance through Phase 2B accepted; Finance Phase 2C implemented locally
+Status: Finance through Phase 2C and Calendar Phase 3A accepted; Calendar Phase 3B implemented locally
 
 Last reviewed: 2026-08-27
 
-Current boundary: Do not begin Calendar, School, Tasks, Goals, AI, integrations, OCR, Python, or ML until the next milestone is approved.
+Current boundary: Complete Calendar Phase 3B only. Do not begin School, Tasks, Goals, AI, external integrations, notification delivery, OCR, Python, or ML until a later milestone is approved.
 
-This is the durable architectural source of truth for Life Organizer. It records decisions that future implementation sessions must preserve.
+This is the durable architectural source of truth for LifeStack. It records decisions that future implementation sessions must preserve.
 
 ## 1. Product and engineering direction
 
-Life Organizer is a responsive personal life-management application. Finance, Calendar, School, Tasks, Goals, Notifications, Analytics, and the eventual AI Assistant are distinct domains in one modular Next.js monolith. A source module owns its data; shared experiences project it rather than create competing copies.
+LifeStack is a responsive personal life-management application. Finance, Calendar, School, Tasks, Goals, Notifications, Analytics, and the eventual AI Assistant are distinct domains in one modular Next.js monolith. A source module owns its data; shared experiences project it rather than create competing copies.
 
 Core rules:
 
@@ -138,21 +138,28 @@ The pure recurrence helper clamps end-of-month dates and is tested for weekly, b
 
 ## 6. Integration boundaries
 
-### Calendar
+### Calendar projection contract
 
-Finance remains authoritative for `recurring_bills.next_due_date` and `recurring_income.next_payday`. A future Calendar query will project bounded occurrences into a shared DTO. It must not duplicate bills/paydays into calendar tables.
+Finance remains authoritative for `recurring_bills.next_due_date` and `recurring_income.next_payday`. Calendar projects bounded occurrences into a shared DTO and never duplicates bills/paydays into calendar tables.
 
 ```ts
 type CalendarItem = {
   id: string
-  sourceType: "event" | "bill" | "payday" | "course" | "assessment" | "task" | "goal"
+  sourceType: "native" | "bill" | "income"
   sourceId: string
   title: string
-  startsAt: string
-  endsAt?: string
+  start: string
+  end: string | null
   allDay: boolean
-  color?: string
-  href: string
+  category: string | null
+  type: string
+  description: string | null
+  location: string | null
+  amount: string | null
+  currency: string | null
+  isEditable: boolean
+  sourceUrl: string
+  metadata: Record<string, string | boolean | null>
 }
 ```
 
@@ -183,9 +190,11 @@ Migration history:
 1. `20260826000100_create_profiles.sql` - applied to hosted Supabase and accepted.
 2. `20260826000200_finance_core.sql` - Phase 2A schema; applied to hosted Supabase and accepted.
 3. `20260827000100_budgeting_analytics.sql` - Phase 2B budget schema and atomic save function; applied and accepted.
-4. `20260827000200_cash_flow_planning.sql` - Phase 2C account-optional schedules and occurrence-reconciliation constraints; pending owner application.
+4. `20260827000200_cash_flow_planning.sql` - Phase 2C account-optional schedules and occurrence-reconciliation constraints; applied and accepted.
+5. `20260827000300_calendar_core.sql` - Phase 3A private native events, integrity constraints, indexes, RLS, and grants; applied and accepted.
+6. `20260827000400_calendar_recurrence_reminders.sql` - Phase 3B source recurrence, reminder configuration, and default-view preference; pending owner application.
 
-The CLI is linked. After review, apply pending migrations with `npm run db:push`, inspect the output before confirming, then run `npm run db:types:linked`. `types/database.ts` carries the last hosted generated schema plus the pending local budget shape so the application can compile before the migration exists remotely; linked generation becomes authoritative immediately after push.
+The CLI is linked. After review, apply pending migrations with `npm run db:push`, inspect the output before confirming, then run `npm run db:types:linked`. `types/database.ts` carries the last hosted generated schema plus the pending local Calendar shape so the application can compile before the migration exists remotely; linked generation becomes authoritative immediately after push.
 
 Docker is optional for application development but required by the local Supabase stack and `npm run db:test`. Never assume a local reset has changed hosted infrastructure.
 
@@ -194,9 +203,11 @@ Docker is optional for application development but required by the local Supabas
 - Phase 0/1: Foundation, authentication, responsive shell - accepted.
 - Phase 2A: Finance ledger, accounts, categories, transactions, transfers, recurring templates - accepted.
 - Phase 2B: Monthly budgeting and deterministic Finance analytics - accepted.
-- Phase 2C: Account-optional schedules and deterministic known cash-flow planning - implemented locally, awaiting hosted migration and browser acceptance.
+- Phase 2C: Account-optional schedules and deterministic known cash-flow planning - accepted.
+- Phase 3A: Native Calendar plus Finance projections - accepted.
+- Phase 3B: Native recurrence, richer views, reminders, and archive restoration - implemented locally, awaiting hosted migration and browser acceptance.
 - Future Finance: mark-paid reconciliation workflow, recurrence advancement, discretionary estimation, import/reconciliation, and richer planning - blocked pending review.
-- Later: Calendar, School, Tasks/Goals, notifications/analytics, controlled AI, integrations/data science.
+- Later: Calendar recurrence/week view, School, Tasks/Goals, notifications, controlled AI, integrations/data science.
 
 Deferred finance decisions include currency conversion, import/deduplication, receipt storage/OCR, automatic recurring transaction generation, richer recurrence rules, editing/voiding an entire transfer, discretionary estimation, and subscription detection.
 
@@ -336,6 +347,87 @@ Planning suppresses a projected occurrence when a posted transaction already car
 
 ### 11.8 Calendar and service boundaries
 
-Finance remains authoritative for recurrence, projected dates, amounts, account assignment, and stable occurrence IDs. The future Calendar module will consume bounded Finance projections and will not duplicate rows.
+Finance remains authoritative for recurrence, projected dates, amounts, account assignment, and stable occurrence IDs. Calendar consumes bounded Finance projections and does not duplicate rows.
 
 Reusable service entry points include `getCashFlowForecast`, `getUpcomingBills`, `getNextPayday`, `getProjectedAccountBalance`, `getFinancialWarnings`, and `getUnassignedObligations`. No OpenAI requests or arbitrary model database access are introduced.
+
+## 12. Calendar Phase 3A: native events and projections
+
+### 12.1 Native event storage
+
+`calendar_events` stores only Calendar-owned native source events. Every row belongs to one profile and is protected by authenticated-only RLS plus column-level grants. Ownership and audit columns cannot be updated by the browser. Events are archived with `archived_at`; authenticated clients have no hard-delete grant.
+
+Timed and all-day events intentionally use different shapes:
+
+- timed events store `starts_at` and `ends_at` as `timestamptz` instants and leave date columns null;
+- all-day events store timezone-free `start_date` and inclusive `end_date` values and leave timestamp columns null.
+
+A database check requires exactly one shape and enforces `ends_at > starts_at` or `end_date >= start_date`. This prevents midnight-UTC conversion from moving birthdays, holidays, or multi-day events across local dates.
+
+Phase 3B adds source-level recurrence fields to this same authoritative row; projected occurrences are still never persisted.
+
+### 12.2 Timezone semantics
+
+The profile IANA timezone is authoritative; Toronto is only the profile default. Forms convert local wall times to UTC instants on the trusted server. Nonexistent DST wall times are rejected. When a fall-back wall time is ambiguous, the earlier matching instant is chosen deterministically. Reads format timed instants in the current profile timezone. All-day dates never pass through timezone conversion.
+
+### 12.3 Shared projection service
+
+`features/calendar/queries.ts#getCalendarItems` is the RLS-bound orchestration service. It accepts an inclusive date range, executes bounded native and Finance queries with the user's ordinary Supabase session, maps each source to `CalendarItem`, filters to the visible range, and returns one chronological collection. The Calendar page and Dashboard both consume this service; page components do not reproduce source queries.
+
+Phase 3A source types are `native`, `bill`, and `income`. Native items are editable and link to Calendar detail routes. Bill/income items are read-only projections and link to `/finance#recurring`. Future source adapters can map School, Tasks, or Goals into the DTO without changing source ownership.
+
+### 12.4 Finance projection and reconciliation
+
+Calendar calls the existing Finance `buildCashFlowTimeline` service, which itself uses the bounded anchored recurrence engine. Stable IDs remain `bill:<source-id>:<date>` and `income:<source-id>:<date>`. Active schedules are expanded only for the requested range; paused schedules are excluded. Unassigned schedules remain visible with `Account: Unassigned`, and each occurrence retains its own exact amount and currency.
+
+Posted transactions linked to a recurring source/date produce the same recorded-occurrence ID used by Finance Planning, so the projected schedule occurrence is suppressed consistently. Calendar never persists projected occurrences and never uses elevated credentials; Finance RLS remains the security boundary.
+
+### 12.5 Views and range behavior
+
+Desktop Calendar uses a Sunday-first month grid (following the stored `week_starts_on` preference) plus a selected-date agenda. Mobile uses a compact scrollable date selector and agenda instead of squeezing the desktop grid. Agenda view groups the same normalized range chronologically. Previous/next/today controls use URL state, and the visible month query is bounded to the complete weeks shown by the grid.
+
+Drag-and-drop, external providers, and notification delivery remain deferred.
+
+## 13. Calendar Phase 3B: recurrence, richer views, and reminders
+
+### 13.1 Native recurrence source model
+
+Native recurrence is stored on the authoritative `calendar_events` row with `recurrence_frequency`, optional inclusive `recurrence_until`, and `recurrence_timezone` for timed series. Supported frequencies are daily, weekly, monthly, and yearly. A null frequency means the source is a single event. Archiving the source removes the entire series from active projection without deleting any occurrence rows because occurrence rows do not exist.
+
+Series editing is the Phase 3B mutation model. The UI explicitly labels that edits and archives affect the complete series. Per-occurrence and “this and future” changes are deferred until an exception table can key overrides/cancellations by `(source_event_id, occurrence_anchor_date)` without corrupting the source rule.
+
+### 13.2 Shared anchored dates and domain-specific expansion
+
+`features/shared/recurrence.ts` owns deterministic date primitives shared by Finance and Calendar: bounded expansion, chronological advancement, month-end clamping, and leap-year recovery. A January 31 anchor yields January 31, February 28/29, March 31, and April 30 without permanent drift. A February 29 yearly anchor uses February 28 in non-leap years and returns to February 29 in leap years.
+
+Finance retains its schedule DTO, stable occurrence IDs, posted-actual suppression, and bill/income semantics. Native Calendar has a separate adapter for event duration, all-day spans, wall-clock time, reminders, and source links. Sharing primitives does not merge the domain models.
+
+Every expansion has an inclusive requested range and a defensive iteration cap. Stable native occurrence IDs are `native:<source-id>:<anchor-date>`. Month queries use the visible grid, Week uses seven days, Day uses one date, Agenda uses 90 days, and Dashboard retains its 30-day range.
+
+### 13.3 Timed recurrence and DST
+
+Timed source events still store their first start/end as `timestamptz`. A timed recurring series additionally stores the profile IANA timezone captured when recurrence is created. Each occurrence combines its anchored local date with the source’s local wall-clock start in that timezone, then resolves a new UTC instant. This keeps a 7 PM Toronto event at 7 PM Toronto across offset changes. Series editing preserves the stored recurrence timezone.
+
+Fall-back ambiguity chooses the earlier matching instant consistently. If a daily series lands on a nonexistent spring-forward wall time, it moves forward to the first valid local minute after the gap. The original elapsed event duration is then applied to the occurrence start. All-day recurrence never uses timestamp conversion and preserves its inclusive date span.
+
+### 13.4 Week, Day, Agenda, and mobile behavior
+
+Calendar state uses `?date=YYYY-MM-DD&view=month|week|day|agenda`, so switching views retains the selected date and browser navigation remains useful. `profiles.calendar_default_view` stores the preference used only when the URL omits a view.
+
+Desktop/tablet Week renders seven days, a separate all-day band, and a bounded 6 AM–11 PM timed grid. A deterministic interval-partitioning helper assigns overlapping events to visible side-by-side columns. Items outside or extending past the default window remain accessible in Day’s outside-hours section. Day shares the timeline and adds a complete detail agenda. On narrow screens, Week intentionally becomes a seven-date selector plus Day agenda instead of shrinking seven timed columns. Agenda groups the next 90 days with Today/Tomorrow headings, source indicators, times, Finance amounts, and explicit bounds.
+
+Multi-day all-day items use inclusive overlap checks and appear on every included date across all views. Finance bills and income remain all-day read-only projections with existing assignment, currency, pause, and actual-reconciliation behavior.
+
+### 13.5 Reminder configuration boundary
+
+`calendar_event_reminders` stores owned native-source offsets in integer minutes, from event time (`0`) through one week (`10080`). A composite foreign key `(event_id, user_id)` prevents cross-user references, and `(event_id, offset_minutes)` is unique. Authenticated clients have read-only table access; `save_calendar_event_reminders` derives `auth.uid()`, verifies an active owned event, normalizes at most eight offsets, and replaces the set atomically.
+
+For a recurring event, one reminder configuration applies to every projected occurrence. No reminder occurrence rows, delivery jobs, channels, emails, push messages, SMS, or cron workers exist. Future delivery code must derive actionable instants from a bounded occurrence window plus offsets and must ignore archived sources.
+
+The normalized `CalendarItem` exposes typed `recurrence` and `reminderOffsets` fields. Future School, Tasks, Goals, and Finance adapters may expose their own authoritative reminder configuration through the same projection contract; the native reminder table is not generalized prematurely into cross-domain ownership.
+
+### 13.6 Archive restoration and security
+
+`/calendar/settings` lists only the current user’s archived native sources and restores them by clearing `archived_at` through the ordinary authenticated client. Restoring a recurring source restores its projected series and source-level reminder configuration. Normal Calendar queries continue filtering archived sources before expansion.
+
+No service-role client is introduced. Native events, reminders, profile preference updates, and Finance reads all retain their existing RLS boundaries. Reminder writes are restricted to the pinned-search-path authenticated function; anonymous and direct browser writes are denied.

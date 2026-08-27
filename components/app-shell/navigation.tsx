@@ -24,8 +24,8 @@ import { cn } from "@/lib/utils";
 
 const navigationItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, ready: true },
-  { href: "/finance", label: "Finance", icon: WalletCards },
-  { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/finance", label: "Finance", icon: WalletCards, ready: true },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays, ready: true },
   { href: "/school", label: "School", icon: GraduationCap },
   { href: "/tasks", label: "Tasks", icon: CheckSquare2 },
   { href: "/goals", label: "Goals", icon: Target },
@@ -58,7 +58,7 @@ function NavLink({ item, compact = false }: { item: (typeof navigationItems)[num
     >
       <Icon className={compact ? "size-5" : "size-4"} />
       <span>{item.label}</span>
-      {!compact && item.href !== "/dashboard" ? (
+      {!compact && !("ready" in item && item.ready) ? (
         <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-[0.625rem] font-medium text-muted-foreground">Soon</span>
       ) : null}
     </Link>
@@ -72,7 +72,7 @@ export function DesktopSidebar({ email, displayName }: { email: string | null; d
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r bg-sidebar md:flex">
       <div className="flex h-18 items-center gap-3 border-b px-5">
         <BrandMark className="size-9 rounded-lg" />
-        <span className="font-semibold tracking-tight">Life Organizer</span>
+        <span className="font-semibold tracking-tight">LifeStack</span>
       </div>
       <nav aria-label="Primary navigation" className="flex-1 space-y-1 overflow-y-auto p-3">
         {navigationItems.map((item) => <NavLink item={item} key={item.href} />)}
@@ -98,7 +98,7 @@ export function MobileHeader({ displayName }: { displayName: string | null }) {
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/90 px-4 backdrop-blur md:hidden">
       <Link className="flex items-center gap-2.5" href="/dashboard">
         <BrandMark className="size-8 rounded-lg" />
-        <span className="font-semibold tracking-tight">Life Organizer</span>
+        <span className="font-semibold tracking-tight">LifeStack</span>
       </Link>
       <details className="group relative">
         <summary className="flex size-10 cursor-pointer list-none items-center justify-center rounded-lg hover:bg-muted [&::-webkit-details-marker]:hidden">

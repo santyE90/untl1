@@ -16,7 +16,7 @@ export default function Home() {
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-6 sm:px-8">
         <Link className="flex items-center gap-3" href="/">
           <BrandMark className="size-9 rounded-lg" />
-          <span className="font-semibold tracking-tight">Life Organizer</span>
+          <span className="font-semibold tracking-tight">LifeStack</span>
         </Link>
         <div className="flex items-center gap-2">
           <Button render={<Link href="/login">Sign in</Link>} variant="ghost" />
@@ -29,7 +29,7 @@ export default function Home() {
         <div>
           <p className="mb-5 inline-flex rounded-full border bg-card/80 px-3 py-1 text-sm font-medium text-primary shadow-sm">Your day, connected</p>
           <h1 className="max-w-2xl text-4xl font-semibold leading-[1.08] tracking-[-0.035em] sm:text-6xl">A calmer way to organize the moving parts of life.</h1>
-          <p className="mt-6 max-w-xl text-lg leading-8 text-muted-foreground">Life Organizer is becoming one secure home for finances, schedules, school, tasks, and goals—with each part designed to work together.</p>
+          <p className="mt-6 max-w-xl text-lg leading-8 text-muted-foreground">LifeStack is becoming one secure home for finances, schedules, school, tasks, and goals—with each part designed to work together.</p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Button className="h-11 px-5" render={<Link href="/signup">Create your account <ArrowRight /></Link>} />
             <Button className="h-11 px-5" render={<Link href="/login">I already have an account</Link>} variant="outline" />

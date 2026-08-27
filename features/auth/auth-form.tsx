@@ -57,7 +57,7 @@ export function AuthForm({ action, mode, next }: AuthFormProps) {
       ) : null}
       <FormSubmitButton>{isSignup ? "Create account" : "Sign in"}</FormSubmitButton>
       <p className="text-center text-sm text-muted-foreground">
-        {isSignup ? "Already have an account?" : "New to Life Organizer?"}{" "}
+        {isSignup ? "Already have an account?" : "New to LifeStack?"}{" "}
         <Button className="h-auto p-0" render={<Link href={isSignup ? "/login" : "/signup"}>{isSignup ? "Sign in" : "Create an account"}</Link>} variant="link" />
       </p>
     </form>
