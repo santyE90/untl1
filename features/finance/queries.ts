@@ -52,8 +52,8 @@ export async function getFinanceOverview() {
       accountName: accountNames.get(transaction.account_id) ?? "Archived account",
       categoryName: transaction.category_id ? categoryNames.get(transaction.category_id) ?? "Archived category" : null,
     })),
-    bills: (billsResult.data ?? []).map((bill) => ({ ...bill, expected_amount: String(bill.expected_amount), accountName: accountNames.get(bill.account_id) ?? "Archived account", categoryName: categoryNames.get(bill.category_id) ?? "Archived category" })),
-    income: (incomeResult.data ?? []).map((item) => ({ ...item, expected_amount: String(item.expected_amount), accountName: accountNames.get(item.destination_account_id) ?? "Archived account" })),
+    bills: (billsResult.data ?? []).map((bill) => ({ ...bill, expected_amount: String(bill.expected_amount), accountName: bill.account_id ? accountNames.get(bill.account_id) ?? "Archived account" : "Unassigned", categoryName: categoryNames.get(bill.category_id) ?? "Archived category" })),
+    income: (incomeResult.data ?? []).map((item) => ({ ...item, expected_amount: String(item.expected_amount), accountName: item.destination_account_id ? accountNames.get(item.destination_account_id) ?? "Archived account" : "Unassigned" })),
   };
 }
 

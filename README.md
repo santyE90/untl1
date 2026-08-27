@@ -1,6 +1,6 @@
 # Life Organizer
 
-Life Organizer is a responsive personal-management application built with Next.js 16 and Supabase. The working application includes public email/password authentication, private profiles, a responsive app shell, and Finance: accounts, exact derived balances, categorized transactions, atomic transfers, recurring schedules, monthly budgets, and deterministic analytics.
+Life Organizer is a responsive personal-management application built with Next.js 16 and Supabase. The working application includes public email/password authentication, private profiles, a responsive app shell, and Finance: accounts, exact derived balances, categorized transactions, atomic transfers, account-optional recurring schedules, monthly budgets, deterministic analytics, and known cash-flow planning.
 
 [docs/project-architecture.md](docs/project-architecture.md) is the detailed source of truth for schema decisions, ledger semantics, security boundaries, and roadmap.
 
@@ -40,31 +40,32 @@ Open <http://localhost:3000>.
 
 ## Hosted Supabase migrations
 
-Hosted migrations are never applied automatically. The linked CLI should show the accepted profiles/Finance Core migrations and the pending Phase 2B migration:
+Hosted migrations are never applied automatically. The linked CLI should show the accepted migrations and the pending Phase 2C migration:
 
 ```text
 supabase/migrations/20260826000100_create_profiles.sql
 supabase/migrations/20260826000200_finance_core.sql
 supabase/migrations/20260827000100_budgeting_analytics.sql
+supabase/migrations/20260827000200_cash_flow_planning.sql
 ```
 
-For the pending Finance Phase 2B migration, inspect it and run:
+For the pending Finance Phase 2C migration, inspect it and run:
 
 ```bash
 npm run db:push
 npm run db:types:linked
 ```
 
-Confirm the push prompt lists only `20260827000100_budgeting_analytics.sql`. The second command replaces `types/database.ts` with hosted generated types after the schema exists. No additional Supabase dashboard settings are required for Finance.
+Confirm the push prompt lists only `20260827000200_cash_flow_planning.sql`. The second command replaces `types/database.ts` with hosted generated types after the schema exists. No additional Supabase dashboard settings are required for Finance.
 
-If SQL Editor is preferred, run the entire Phase 2B migration there, then repair/confirm CLI migration history before a future `db:push`; do not let the CLI reapply the same SQL.
+If SQL Editor is preferred, run the entire Phase 2C migration there, then repair/confirm CLI migration history before a future `db:push`; do not let the CLI reapply the same SQL.
 
-The Phase 2B migration creates:
+The Phase 2C migration:
 
-- one normalized monthly budget per user/month/currency;
-- optional category limits with composite ownership protection;
-- an atomic authenticated budget-save function;
-- read-only table grants, RLS, checks, and indexes.
+- makes recurring bill and income account associations optional;
+- preserves composite ownership checks for later assignment;
+- keeps actual ledger transactions account-required;
+- adds recurring-source/type checks and duplicate-occurrence indexes.
 
 ## Quality commands
 
@@ -113,7 +114,7 @@ docs/                durable architecture and project decisions
 
 ## Scope
 
-Implemented through Finance Phase 2B:
+Implemented through Finance Phase 2C:
 
 - signup, email confirmation, login/logout, protected sessions, and profiles;
 - responsive desktop/mobile application shell;
@@ -123,6 +124,9 @@ Implemented through Finance Phase 2B:
 - monthly overall/category budgets with historical navigation;
 - income, expense, cash-flow, category, month-comparison, recurring-cost, and net-worth analytics;
 - focused responsive Recharts visualizations;
+- bounded anchored recurrence expansion without generated future rows;
+- known scheduled cash-flow timelines, account projections, liquidity, unassigned totals, and shortfall warnings;
+- 7/30/60/90-day, month-end, and custom planning horizons;
 - application unit tests and database RLS test files.
 
-Deferred until later approval: predictive forecasting, receipt OCR, bank imports, account-optional recurring schedules, Calendar, School, Tasks, Goals, AI, Python/ML, and notification delivery.
+Deferred until later approval: discretionary estimates, mark-paid/received workflow, predictive or ML forecasting, receipt OCR, bank imports, Calendar, School, Tasks, Goals, AI, Python/ML, and notification delivery.

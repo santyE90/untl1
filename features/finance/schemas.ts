@@ -60,16 +60,24 @@ const recurringBase = z.object({
 });
 
 export const billSchema = recurringBase.extend({
-  accountId: id,
+  accountId: z.union([id, z.literal("")]).transform((value) => value || null),
   categoryId: id,
+  currency: z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/),
   nextDueDate: date,
   autopay: z.boolean(),
 });
 
 export const incomeSchema = recurringBase.extend({
-  destinationAccountId: id,
+  destinationAccountId: z.union([id, z.literal("")]).transform((value) => value || null),
   categoryId: z.union([id, z.literal("")]).transform((value) => value || null),
+  currency: z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/),
   nextPayday: date,
+});
+
+export const recurringAccountAssignmentSchema = z.object({
+  sourceType: z.enum(["bill", "income"]),
+  sourceId: id,
+  accountId: z.union([id, z.literal("")]).transform((value) => value || null),
 });
 
 export const budgetSchema = z.object({

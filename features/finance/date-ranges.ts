@@ -51,3 +51,10 @@ export function daysRemainingInPeriod(today: string, range: DateRange): number {
   if (today > range.end) return 0;
   return Math.round((Date.parse(range.end) - Date.parse(today)) / 86_400_000) + 1;
 }
+
+export function addCalendarDays(date: string, days: number): string {
+  const parsed = new Date(`${date}T12:00:00Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) throw new Error("Invalid calendar date.");
+  parsed.setUTCDate(parsed.getUTCDate() + days);
+  return parsed.toISOString().slice(0, 10);
+}

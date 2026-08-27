@@ -430,7 +430,7 @@ export type Database = {
       }
       recurring_bills: {
         Row: {
-          account_id: string
+          account_id: string | null
           anchor_date: string
           autopay: boolean
           category_id: string
@@ -447,7 +447,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          account_id: string
+          account_id?: string | null
           anchor_date: string
           autopay?: boolean
           category_id: string
@@ -464,7 +464,7 @@ export type Database = {
           user_id: string
         }
         Update: {
-          account_id?: string
+          account_id?: string | null
           anchor_date?: string
           autopay?: boolean
           category_id?: string
@@ -517,7 +517,7 @@ export type Database = {
           category_id: string | null
           created_at: string
           currency: string
-          destination_account_id: string
+          destination_account_id: string | null
           expected_amount: number
           frequency: string
           id: string
@@ -533,7 +533,7 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           currency?: string
-          destination_account_id: string
+          destination_account_id?: string | null
           expected_amount: number
           frequency: string
           id?: string
@@ -549,7 +549,7 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           currency?: string
-          destination_account_id?: string
+          destination_account_id?: string | null
           expected_amount?: number
           frequency?: string
           id?: string

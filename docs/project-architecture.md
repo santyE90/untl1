@@ -1,10 +1,10 @@
 # Life Organizer: Project Architecture
 
-Status: Foundation, Authentication, and Finance Core Phase 2A accepted; Finance Phase 2B implemented locally
+Status: Finance through Phase 2B accepted; Finance Phase 2C implemented locally
 
 Last reviewed: 2026-08-27
 
-Current boundary: Do not begin forecasting, Calendar, School, Tasks, Goals, AI, integrations, OCR, or Python until the next milestone is approved.
+Current boundary: Do not begin Calendar, School, Tasks, Goals, AI, integrations, OCR, Python, or ML until the next milestone is approved.
 
 This is the durable architectural source of truth for Life Organizer. It records decisions that future implementation sessions must preserve.
 
@@ -182,7 +182,8 @@ Migration history:
 
 1. `20260826000100_create_profiles.sql` - applied to hosted Supabase and accepted.
 2. `20260826000200_finance_core.sql` - Phase 2A schema; applied to hosted Supabase and accepted.
-3. `20260827000100_budgeting_analytics.sql` - Phase 2B budget schema and atomic save function; pending owner application.
+3. `20260827000100_budgeting_analytics.sql` - Phase 2B budget schema and atomic save function; applied and accepted.
+4. `20260827000200_cash_flow_planning.sql` - Phase 2C account-optional schedules and occurrence-reconciliation constraints; pending owner application.
 
 The CLI is linked. After review, apply pending migrations with `npm run db:push`, inspect the output before confirming, then run `npm run db:types:linked`. `types/database.ts` carries the last hosted generated schema plus the pending local budget shape so the application can compile before the migration exists remotely; linked generation becomes authoritative immediately after push.
 
@@ -192,11 +193,12 @@ Docker is optional for application development but required by the local Supabas
 
 - Phase 0/1: Foundation, authentication, responsive shell - accepted.
 - Phase 2A: Finance ledger, accounts, categories, transactions, transfers, recurring templates - accepted.
-- Phase 2B: Monthly budgeting and deterministic Finance analytics - implemented locally, awaiting hosted migration and browser acceptance.
-- Future Finance: optional-account recurring schedules, recurrence advancement, forecasting, import/reconciliation, and richer analytics - blocked pending review.
+- Phase 2B: Monthly budgeting and deterministic Finance analytics - accepted.
+- Phase 2C: Account-optional schedules and deterministic known cash-flow planning - implemented locally, awaiting hosted migration and browser acceptance.
+- Future Finance: mark-paid reconciliation workflow, recurrence advancement, discretionary estimation, import/reconciliation, and richer planning - blocked pending review.
 - Later: Calendar, School, Tasks/Goals, notifications/analytics, controlled AI, integrations/data science.
 
-Deferred finance decisions include currency conversion, import/deduplication, reconciliation, receipt storage/OCR, recurring transaction generation, richer recurrence rules, editing/voiding an entire transfer, forecasting, and subscription detection.
+Deferred finance decisions include currency conversion, import/deduplication, receipt storage/OCR, automatic recurring transaction generation, richer recurrence rules, editing/voiding an entire transfer, discretionary estimation, and subscription detection.
 
 ## 10. Finance Phase 2B: Budgeting and analytics
 
@@ -267,6 +269,73 @@ Net worth sums current derived balances only for active accounts with `include_i
 
 All budgets and analytics remain currency-scoped. CAD and USD values are shown separately and are never combined without an exchange-rate model.
 
-### 10.7 Approved deferred scheduling change
+### 10.7 Scheduling boundary carried into Phase 2C
 
-Recurring bills and income currently require an account because that is the deployed Phase 2A schema. A product requirement approved after Phase 2A is to allow schedules to be created before accounts exist. In the future migration, schedule account foreign keys should become optional; Finance and Calendar projections must work without them, while recording an actual paid/received transaction must still require an account. Phase 2B intentionally does not implement this change.
+Phase 2B retained required schedule accounts. Phase 2C implements the approved nullable-account design described below. Actual transactions remain account-required.
+
+## 11. Finance Phase 2C: deterministic cash-flow planning
+
+### 11.1 Optional recurring accounts
+
+`recurring_bills.account_id` and `recurring_income.destination_account_id` are nullable. Schedules keep their own currency, amount, recurrence, and authoritative next date, so they remain useful without an account. Users can assign or unassign a compatible active account later. Composite foreign keys still prevent cross-user assignments, and database triggers require an assigned account to use the schedule currency.
+
+No placeholder account is created. `finance_transactions.account_id` remains non-null: recording an actual paid bill or received payday always requires a real owned account.
+
+### 11.2 Recurrence expansion
+
+`features/finance/recurrence-expansion.ts` expands active schedules into bounded in-memory occurrences. It never creates future transaction rows. Supported cadences are weekly, biweekly, monthly, and yearly.
+
+The authoritative `next_due_date` or `next_payday` is the first candidate. Subsequent monthly/yearly occurrences use the original anchor day/month and clamp only when the target calendar period is shorter. A January 31 schedule therefore produces February 28 and then March 31 rather than drifting permanently to the 28th. A February 29 yearly anchor clamps to February 28 in non-leap years and returns to February 29 in leap years.
+
+Expansion is inclusive of the selected start/end dates and capped defensively. Stable occurrence IDs use `bill:<source-id>:<date>` or `income:<source-id>:<date>`, which is also the Finance-to-Calendar projection identity contract.
+
+### 11.3 Known cash-flow model
+
+The planning timeline contains only explainable structured events:
+
+```text
+date, bill|income, name, signed amount, currency,
+account_id|null, source_id, source_type, occurrence_id
+```
+
+Bills have negative account effects and income has positive effects. Entries sort by date; bills sort before income on the same date as a conservative deterministic display convention, not a claim about actual bank posting order. Currencies are never combined.
+
+Known planning is deliberately separate from:
+
+- actual ledger balance: opening balance plus posted transactions;
+- budgets: spending intentions, never subtracted as scheduled bills;
+- estimated discretionary spending: deferred because reliable recurring-transaction matching does not yet exist.
+
+### 11.4 Assigned and unassigned projections
+
+Assigned occurrences update only their selected account's projected path:
+
+```text
+known projected balance = current derived balance + assigned projected effects
+```
+
+Unassigned occurrences remain in the overall timeline and income/bill totals, with separate unassigned totals and visible warnings. They do not change any account or liquid-cash projection. This prevents the application from inventing routing assumptions.
+
+Account projection starts from the current derived balance. Archived accounts retain data but are omitted from the current planning chart presentation. Account assignment can be changed from the Finance recurring-schedule list.
+
+### 11.5 Liquidity and shortfall semantics
+
+The current liquid-cash view includes active `chequing`, `savings`, and `cash` accounts. Credit cards are liabilities, investments are not assumed to be everyday cash, and other/custom accounts are excluded until an explicit configurability requirement exists. This does not alter Phase 2B net-worth rules.
+
+Assigned schedule effects change liquid projections only when their account is in that liquid set. A potential shortfall warning is emitted when a liquid account's known projected balance first falls below zero. It is labelled as a schedule-based possibility, not an overdraft guarantee. Credit-card negative balances do not trigger cash shortfall warnings.
+
+### 11.6 Forecast horizons
+
+The planning UI supports inclusive 7-, 30-, 60-, and 90-day horizons, the end of the current month, and a custom through-date bounded to one year. The starting date is the user's current calendar date in their profile timezone. Transaction and schedule dates remain date-only values.
+
+### 11.7 Actual occurrence reconciliation
+
+The migration adds partial unique indexes so each recurring source/date may have at most one non-void actual transaction. It also enforces that bill-linked transactions are expenses and income-linked transactions are income.
+
+Planning suppresses a projected occurrence when a posted transaction already carries the same recurring source and date. A full **Mark paid/Mark received** workflow is deferred because it must atomically choose an account, create the linked actual, advance the authoritative next date, and handle late/early occurrences. Ordinary unlinked manual transactions cannot be matched reliably and may still overlap a schedule; the UI documents this limitation rather than guessing by amount or merchant.
+
+### 11.8 Calendar and service boundaries
+
+Finance remains authoritative for recurrence, projected dates, amounts, account assignment, and stable occurrence IDs. The future Calendar module will consume bounded Finance projections and will not duplicate rows.
+
+Reusable service entry points include `getCashFlowForecast`, `getUpcomingBills`, `getNextPayday`, `getProjectedAccountBalance`, `getFinancialWarnings`, and `getUnassignedObligations`. No OpenAI requests or arbitrary model database access are introduced.

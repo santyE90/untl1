@@ -1,5 +1,5 @@
 import type { FinanceAccount } from "./queries";
-import { createAccount, createBill, createCategory, createIncome, createTransaction, createTransfer } from "./actions";
+import { assignRecurringAccount, createAccount, createBill, createCategory, createIncome, createTransaction, createTransfer } from "./actions";
 
 type Category = { id: string; name: string; category_type: string; archived_at: string | null };
 type FormProps = { accounts: FinanceAccount[]; categories: Category[]; today: string };
@@ -70,7 +70,8 @@ export function BillForm({ accounts, categories, today }: FormProps) {
   return <form action={createBill} className="grid gap-4 sm:grid-cols-2">
     <label className={label}>Bill name<input className={input} name="name" required maxLength={100} /></label>
     <label className={label}>Expected amount<input className={input} name="expectedAmount" inputMode="decimal" min="0.0001" step="0.0001" required /></label>
-    <label className={label}>Payment account<select className={input} name="accountId" required defaultValue=""><option value="" disabled>Select an account</option><AccountOptions accounts={accounts} /></select></label>
+    <label className={label}>Payment account<select className={input} name="accountId" defaultValue=""><option value="">Unassigned for now</option><AccountOptions accounts={accounts} /></select></label>
+    <label className={label}>Currency<input className={input} name="currency" defaultValue="CAD" pattern="[A-Za-z]{3}" maxLength={3} required /></label>
     <label className={label}>Category<select className={input} name="categoryId" required defaultValue=""><option value="" disabled>Select a category</option><CategoryOptions categories={categories} type="expense" /></select></label>
     <label className={label}>Frequency<select className={input} name="frequency"><option value="weekly">Weekly</option><option value="biweekly">Biweekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select></label>
     <label className={label}>Schedule anchor<input className={input} name="anchorDate" type="date" defaultValue={today} required /></label>
@@ -85,12 +86,26 @@ export function IncomeForm({ accounts, categories, today }: FormProps) {
   return <form action={createIncome} className="grid gap-4 sm:grid-cols-2">
     <label className={label}>Income source<input className={input} name="name" required maxLength={100} /></label>
     <label className={label}>Expected amount<input className={input} name="expectedAmount" inputMode="decimal" min="0.0001" step="0.0001" required /></label>
-    <label className={label}>Destination<select className={input} name="destinationAccountId" required defaultValue=""><option value="" disabled>Select an account</option><AccountOptions accounts={accounts} /></select></label>
+    <label className={label}>Destination account<select className={input} name="destinationAccountId" defaultValue=""><option value="">Unassigned for now</option><AccountOptions accounts={accounts} /></select></label>
+    <label className={label}>Currency<input className={input} name="currency" defaultValue="CAD" pattern="[A-Za-z]{3}" maxLength={3} required /></label>
     <label className={label}>Category (optional)<select className={input} name="categoryId" defaultValue=""><option value="">None</option><CategoryOptions categories={categories} type="income" /></select></label>
     <label className={label}>Frequency<select className={input} name="frequency"><option value="weekly">Weekly</option><option value="biweekly">Biweekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select></label>
     <label className={label}>Schedule anchor<input className={input} name="anchorDate" type="date" defaultValue={today} required /></label>
     <label className={label}>Next payday<input className={input} name="nextPayday" type="date" defaultValue={today} required /></label>
     <label className={label}>Reminder lead days<input className={input} name="reminderDays" type="number" min={0} max={365} defaultValue={1} required /></label>
     <button className={`${submit} sm:col-span-2`} type="submit">Add recurring income</button>
+  </form>;
+}
+
+export function RecurringAccountForm({ accounts, currency, sourceId, sourceType, currentAccountId }: { accounts: FinanceAccount[]; currency: string; sourceId: string; sourceType: "bill" | "income"; currentAccountId: string | null }) {
+  const compatible = accounts.filter((account) => !account.archivedAt && account.currency === currency);
+  return <form action={assignRecurringAccount} className="mt-2 flex gap-2">
+    <input type="hidden" name="sourceId" value={sourceId} />
+    <input type="hidden" name="sourceType" value={sourceType} />
+    <select aria-label={`Account for ${sourceType}`} className="h-8 min-w-0 flex-1 rounded-md border border-input bg-card px-2 text-xs" name="accountId" defaultValue={currentAccountId ?? ""}>
+      <option value="">Unassigned</option>
+      {compatible.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+    </select>
+    <button className="rounded-md border border-border px-2 text-xs font-semibold hover:bg-muted">Assign</button>
   </form>;
 }

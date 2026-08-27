@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { currentDateInTimeZone, currentMonthKey, daysRemainingInPeriod, monthRange, previousMonthKey } from "./date-ranges";
+import { addCalendarDays, currentDateInTimeZone, currentMonthKey, daysRemainingInPeriod, monthRange, previousMonthKey } from "./date-ranges";
 
 describe("finance date ranges", () => {
   it("builds exact month boundaries including leap years", () => {
@@ -15,5 +15,9 @@ describe("finance date ranges", () => {
 
   it("counts the current day in days remaining", () => {
     expect(daysRemainingInPeriod("2026-08-27", monthRange("2026-08"))).toBe(5);
+  });
+
+  it("adds days without local-time or daylight-saving drift", () => {
+    expect(addCalendarDays("2026-03-07", 2)).toBe("2026-03-09");
   });
 });

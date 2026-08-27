@@ -7,7 +7,7 @@ import { requireAuthenticatedUser } from "@/lib/auth/user";
 import { createClient } from "@/lib/supabase/server";
 
 import { moneyToDecimal, parseMoney, signedTransactionAmount } from "./money";
-import { accountSchema, billSchema, categorySchema, incomeSchema, transactionSchema, transferSchema } from "./schemas";
+import { accountSchema, billSchema, categorySchema, incomeSchema, recurringAccountAssignmentSchema, transactionSchema, transferSchema } from "./schemas";
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) ?? "");
@@ -123,26 +123,33 @@ export async function createTransfer(formData: FormData) {
 }
 
 export async function createBill(formData: FormData) {
-  const parsed = billSchema.safeParse({ name: text(formData, "name"), expectedAmount: text(formData, "expectedAmount"), accountId: text(formData, "accountId"), categoryId: text(formData, "categoryId"), frequency: text(formData, "frequency"), anchorDate: text(formData, "anchorDate"), nextDueDate: text(formData, "nextDueDate"), reminderDays: text(formData, "reminderDays"), autopay: checked(formData, "autopay") });
+  const parsed = billSchema.safeParse({ name: text(formData, "name"), expectedAmount: text(formData, "expectedAmount"), accountId: text(formData, "accountId"), categoryId: text(formData, "categoryId"), currency: text(formData, "currency"), frequency: text(formData, "frequency"), anchorDate: text(formData, "anchorDate"), nextDueDate: text(formData, "nextDueDate"), reminderDays: text(formData, "reminderDays"), autopay: checked(formData, "autopay") });
   if (!parsed.success) fail(parsed.error.issues[0]?.message ?? "Check the bill details.");
-  const { user, supabase } = await validateTransactionParents(parsed.data.accountId, parsed.data.categoryId, "expense", parsed.data.nextDueDate);
-  const { data: account } = await supabase.from("finance_accounts").select("currency").eq("id", parsed.data.accountId).single();
-  const { error } = await supabase.from("recurring_bills").insert({ user_id: user.id, name: parsed.data.name, expected_amount: dbNumeric(moneyToDecimal(parseMoney(parsed.data.expectedAmount))), currency: account?.currency ?? "CAD", account_id: parsed.data.accountId, category_id: parsed.data.categoryId, frequency: parsed.data.frequency, anchor_date: parsed.data.anchorDate, next_due_date: parsed.data.nextDueDate, reminder_days: parsed.data.reminderDays, autopay: parsed.data.autopay });
+  const { user, supabase } = await financeContext();
+  const { data: category } = await supabase.from("finance_categories").select("category_type,archived_at").eq("id", parsed.data.categoryId).eq("user_id", user.id).maybeSingle();
+  if (!category || category.archived_at || !["expense", "both"].includes(category.category_type)) fail("Choose an expense category.");
+  if (parsed.data.accountId) {
+    const { data: account } = await supabase.from("finance_accounts").select("currency,opening_balance_date,archived_at").eq("id", parsed.data.accountId).eq("user_id", user.id).maybeSingle();
+    if (!account || account.archived_at || account.currency !== parsed.data.currency || parsed.data.nextDueDate < account.opening_balance_date) fail("Choose an active account with the same currency and a compatible date.");
+  }
+  const { error } = await supabase.from("recurring_bills").insert({ user_id: user.id, name: parsed.data.name, expected_amount: dbNumeric(moneyToDecimal(parseMoney(parsed.data.expectedAmount))), currency: parsed.data.currency, account_id: parsed.data.accountId, category_id: parsed.data.categoryId, frequency: parsed.data.frequency, anchor_date: parsed.data.anchorDate, next_due_date: parsed.data.nextDueDate, reminder_days: parsed.data.reminderDays, autopay: parsed.data.autopay });
   if (error) fail(error.message);
   done("Recurring bill added.");
 }
 
 export async function createIncome(formData: FormData) {
-  const parsed = incomeSchema.safeParse({ name: text(formData, "name"), expectedAmount: text(formData, "expectedAmount"), destinationAccountId: text(formData, "destinationAccountId"), categoryId: text(formData, "categoryId"), frequency: text(formData, "frequency"), anchorDate: text(formData, "anchorDate"), nextPayday: text(formData, "nextPayday"), reminderDays: text(formData, "reminderDays") });
+  const parsed = incomeSchema.safeParse({ name: text(formData, "name"), expectedAmount: text(formData, "expectedAmount"), destinationAccountId: text(formData, "destinationAccountId"), categoryId: text(formData, "categoryId"), currency: text(formData, "currency"), frequency: text(formData, "frequency"), anchorDate: text(formData, "anchorDate"), nextPayday: text(formData, "nextPayday"), reminderDays: text(formData, "reminderDays") });
   if (!parsed.success) fail(parsed.error.issues[0]?.message ?? "Check the income details.");
   const { user, supabase } = await financeContext();
-  const { data: account } = await supabase.from("finance_accounts").select("currency,opening_balance_date,archived_at").eq("id", parsed.data.destinationAccountId).eq("user_id", user.id).maybeSingle();
-  if (!account || account.archived_at || parsed.data.nextPayday < account.opening_balance_date) fail("Choose an active destination account with a compatible date.");
+  if (parsed.data.destinationAccountId) {
+    const { data: account } = await supabase.from("finance_accounts").select("currency,opening_balance_date,archived_at").eq("id", parsed.data.destinationAccountId).eq("user_id", user.id).maybeSingle();
+    if (!account || account.archived_at || account.currency !== parsed.data.currency || parsed.data.nextPayday < account.opening_balance_date) fail("Choose an active destination account with the same currency and a compatible date.");
+  }
   if (parsed.data.categoryId) {
     const { data: category } = await supabase.from("finance_categories").select("category_type,archived_at").eq("id", parsed.data.categoryId).eq("user_id", user.id).maybeSingle();
     if (!category || category.archived_at || !["income", "both"].includes(category.category_type)) fail("Choose an income category.");
   }
-  const { error } = await supabase.from("recurring_income").insert({ user_id: user.id, name: parsed.data.name, expected_amount: dbNumeric(moneyToDecimal(parseMoney(parsed.data.expectedAmount))), currency: account.currency, destination_account_id: parsed.data.destinationAccountId, category_id: parsed.data.categoryId, frequency: parsed.data.frequency, anchor_date: parsed.data.anchorDate, next_payday: parsed.data.nextPayday, reminder_days: parsed.data.reminderDays });
+  const { error } = await supabase.from("recurring_income").insert({ user_id: user.id, name: parsed.data.name, expected_amount: dbNumeric(moneyToDecimal(parseMoney(parsed.data.expectedAmount))), currency: parsed.data.currency, destination_account_id: parsed.data.destinationAccountId, category_id: parsed.data.categoryId, frequency: parsed.data.frequency, anchor_date: parsed.data.anchorDate, next_payday: parsed.data.nextPayday, reminder_days: parsed.data.reminderDays });
   if (error) fail(error.message);
   done("Recurring income added.");
 }
@@ -159,4 +166,24 @@ export async function setIncomeActive(formData: FormData) {
   const { error } = await supabase.from("recurring_income").update({ is_active: text(formData, "active") === "true" }).eq("id", text(formData, "id"));
   if (error) fail(error.message);
   done("Income schedule updated.");
+}
+
+export async function assignRecurringAccount(formData: FormData) {
+  const parsed = recurringAccountAssignmentSchema.safeParse({ sourceType: text(formData, "sourceType"), sourceId: text(formData, "sourceId"), accountId: text(formData, "accountId") });
+  if (!parsed.success) fail(parsed.error.issues[0]?.message ?? "Choose a valid account.");
+  const { user, supabase } = await financeContext();
+  const scheduleQuery = parsed.data.sourceType === "bill"
+    ? supabase.from("recurring_bills").select("currency").eq("id", parsed.data.sourceId).eq("user_id", user.id).maybeSingle()
+    : supabase.from("recurring_income").select("currency").eq("id", parsed.data.sourceId).eq("user_id", user.id).maybeSingle();
+  const { data: schedule } = await scheduleQuery;
+  if (!schedule) fail("Schedule not found.");
+  if (parsed.data.accountId) {
+    const { data: account } = await supabase.from("finance_accounts").select("currency,archived_at").eq("id", parsed.data.accountId).eq("user_id", user.id).maybeSingle();
+    if (!account || account.archived_at || account.currency !== schedule.currency) fail("Choose an active account using the schedule currency.");
+  }
+  const result = parsed.data.sourceType === "bill"
+    ? await supabase.from("recurring_bills").update({ account_id: parsed.data.accountId }).eq("id", parsed.data.sourceId)
+    : await supabase.from("recurring_income").update({ destination_account_id: parsed.data.accountId }).eq("id", parsed.data.sourceId);
+  if (result.error) fail(result.error.message);
+  done(parsed.data.accountId ? "Schedule account assigned." : "Schedule marked unassigned.");
 }

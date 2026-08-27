@@ -1,6 +1,6 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 type CategoryDatum = { name: string; amount: number; color?: string | null };
 type ComparisonDatum = { name: string; current: number; previous: number };
@@ -39,6 +39,21 @@ export function MonthComparisonChart({ data, currency, currentLabel, previousLab
         <Bar dataKey="current" name={currentLabel} fill="var(--chart-1)" radius={[6, 6, 0, 0]} />
         <Bar dataKey="previous" name={previousLabel} fill="var(--chart-2)" radius={[6, 6, 0, 0]} />
       </BarChart>
+    </ResponsiveContainer>
+  </div>;
+}
+
+export function ProjectedBalanceChart({ data, currency, accountName }: { data: Array<{ date: string; balance: number; label: string }>; currency: string; accountName: string }) {
+  if (data.length < 2) return <p className="py-8 text-sm text-muted-foreground">No assigned schedule changes in this horizon.</p>;
+  return <div className="h-56 w-full" aria-label={`Known projected balance for ${accountName}`}>
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={data} margin={{ left: 8, right: 16, top: 12 }}>
+        <CartesianGrid stroke="var(--border)" vertical={false} />
+        <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+        <YAxis tickFormatter={(value: number) => currencyLabel(value, currency)} tick={{ fontSize: 11 }} />
+        <Tooltip formatter={(value) => currencyLabel(Number(value), currency)} labelFormatter={(label, payload) => `${label}${payload[0]?.payload?.label ? ` · ${payload[0].payload.label}` : ""}`} />
+        <Line type="stepAfter" dataKey="balance" name="Known balance" stroke="var(--chart-1)" strokeWidth={3} dot={{ fill: "var(--chart-1)", r: 3 }} activeDot={{ r: 5 }} />
+      </LineChart>
     </ResponsiveContainer>
   </div>;
 }
