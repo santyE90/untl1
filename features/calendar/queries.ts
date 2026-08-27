@@ -14,6 +14,7 @@ import { combineCalendarItems, financeEntryToCalendarItem } from "./projection";
 import type { NativeCalendarEvent } from "./types";
 import { getSchoolCalendarItems } from "@/features/school/calendar-provider";
 import { getTaskCalendarItems } from "@/features/tasks/calendar-provider";
+import { getGoalCalendarItems } from "@/features/goals/calendar-provider";
 
 function nativeEvent(row: {
   id: string; title: string; event_type: string | null; all_day: boolean;
@@ -38,6 +39,7 @@ export async function getCalendarContext() {
 export async function getCalendarItems(range: DateRange) {
   const schoolItemsPromise = getSchoolCalendarItems(range);
   const taskItemsPromise = getTaskCalendarItems(range);
+  const goalItemsPromise = getGoalCalendarItems(range);
   const { supabase, timeZone } = await getCalendarContext();
   const rangeStartInstant = zonedLocalDateTimeToUtc(`${range.start}T00:00`, timeZone);
   const rangeEndExclusive = zonedLocalDateTimeToUtc(`${addCalendarDays(range.end, 1)}T00:00`, timeZone);
@@ -76,7 +78,7 @@ export async function getCalendarItems(range: DateRange) {
   const uniqueNativeRows = [...new Map(nativeRows.map((row) => [row.id, row])).values()];
   const nativeItems = uniqueNativeRows.flatMap((row) => expandNativeEvent(nativeEvent(row, reminders.get(row.id) ?? []), range, timeZone));
   const financeItems = buildCashFlowTimeline(schedules, range, recordedIds).map((entry) => financeEntryToCalendarItem(entry, entry.accountId ? accountNames.get(entry.accountId) ?? null : null));
-  return combineCalendarItems([...nativeItems, ...financeItems, ...await schoolItemsPromise, ...await taskItemsPromise], range, timeZone);
+  return combineCalendarItems([...nativeItems, ...financeItems, ...await schoolItemsPromise, ...await taskItemsPromise, ...await goalItemsPromise], range, timeZone);
 }
 
 export async function getNativeCalendarEvent(id: string) {

@@ -1,10 +1,10 @@
 # LifeStack: Project Architecture
 
-Status: Finance through Phase 2C, Calendar through Phase 3B, and School through Phase 4B accepted; Tasks Phase 5A implemented locally
+Status: Finance through Phase 2C, Calendar through Phase 3B, School through Phase 4B, and Tasks Phase 5A accepted; Goals Phase 5B implemented locally
 
 Last reviewed: 2026-08-27
 
-Current boundary: Complete Tasks Phase 5A only. Do not begin Goals, AI, recurring-task occurrence tracking, intelligent scheduling, task analytics, external integrations, notification delivery, Python, or ML until a later milestone is approved.
+Current boundary: Complete Goals Phase 5B only. Do not begin AI, advanced analytics, habit tracking, recurring Tasks, intelligent scheduling, external integrations, notification delivery, Python, or ML until a later milestone is approved.
 
 This is the durable architectural source of truth for LifeStack. It records decisions that future implementation sessions must preserve.
 
@@ -145,7 +145,7 @@ Finance remains authoritative for `recurring_bills.next_due_date` and `recurring
 ```ts
 type CalendarItem = {
   id: string
-  sourceType: "native" | "bill" | "income" | "course_meeting" | "assessment" | "task"
+  sourceType: "native" | "bill" | "income" | "course_meeting" | "assessment" | "task" | "goal"
   sourceId: string
   title: string
   start: string
@@ -195,9 +195,10 @@ Migration history:
 6. `20260827000400_calendar_recurrence_reminders.sql` - Phase 3B source recurrence, reminder configuration, and default-view preference; applied and accepted.
 7. `20260827000500_school_core.sql` - Phase 4A academic hierarchy, grade inputs, weekly schedules, ownership constraints, RLS, and grants; applied and accepted.
 8. `20260827000600_school_planning.sql` - Phase 4B effort input, course resources, and parent-aware restoration integrity; applied and accepted.
-9. `20260827000700_tasks_core.sql` - Phase 5A task lifecycle, due shapes, School ownership link, RLS, grants, and indexes; pending owner application.
+9. `20260827000700_tasks_core.sql` - Phase 5A task lifecycle, due shapes, School ownership link, RLS, grants, and indexes; applied and accepted.
+10. `20260827000800_goals_core.sql` - Phase 5B Goals, exact manual progress, milestones, Task ownership link, RLS, grants, and indexes; pending owner application.
 
-The CLI is linked. After review, apply pending migrations with `npm run db:push`, inspect the output before confirming, then run `npm run db:types:linked`. `types/database.ts` carries the last hosted generated schema plus the pending local Tasks shape so the application can compile before the migration exists remotely; linked generation becomes authoritative immediately after push.
+The CLI is linked. After review, apply pending migrations with `npm run db:push`, inspect the output before confirming, then run `npm run db:types:linked`. `types/database.ts` carries the last hosted generated schema plus the pending local Goals shape so the application can compile before the migration exists remotely; linked generation becomes authoritative immediately after push.
 
 Docker is optional for application development but required by the local Supabase stack and `npm run db:test`. Never assume a local reset has changed hosted infrastructure.
 
@@ -211,9 +212,10 @@ Docker is optional for application development but required by the local Supabas
 - Phase 3B: Native recurrence, richer views, reminders, and archive restoration - accepted.
 - Phase 4A: Academic core, exact grade tracking, and Calendar projection - accepted.
 - Phase 4B: Academic planning, workload, course resources, and restoration - accepted.
-- Phase 5A: Core Tasks plus Calendar and School integration - implemented locally, awaiting hosted migration and browser acceptance.
+- Phase 5A: Core Tasks plus Calendar and School integration - accepted.
+- Phase 5B: Goals, milestones, Task links, and Calendar integration - implemented locally, awaiting hosted migration and browser acceptance.
 - Future Finance: mark-paid reconciliation workflow, recurrence advancement, discretionary estimation, import/reconciliation, and richer planning - blocked pending review.
-- Later: School import/enrichment, Tasks/Goals, notifications, controlled AI, integrations/data science.
+- Later: School import/enrichment, recurring Tasks, notifications, controlled AI, integrations/data science.
 
 Deferred finance decisions include currency conversion, import/deduplication, receipt storage/OCR, automatic recurring transaction generation, richer recurrence rules, editing/voiding an entire transfer, discretionary estimation, and subscription detection.
 
@@ -380,7 +382,7 @@ The profile IANA timezone is authoritative; Toronto is only the profile default.
 
 `features/calendar/queries.ts#getCalendarItems` is the RLS-bound orchestration service. It accepts an inclusive date range, executes bounded native, Finance, School, and Tasks queries with the user's ordinary Supabase session, maps each source to `CalendarItem`, filters to the visible range, and returns one chronological collection. The Calendar page and Dashboard both consume this service; page components do not reproduce source queries.
 
-Phase 3A introduced `native`, `bill`, and `income`; Phase 4A added `course_meeting` and `assessment`; Phase 5A adds `task`. Native items are editable and link to Calendar detail routes. Finance, School, and Tasks items are read-only projections linking to their authoritative module. Future Goals adapters can use the same DTO without changing source ownership.
+Phase 3A introduced `native`, `bill`, and `income`; Phase 4A added `course_meeting` and `assessment`; Phase 5A added `task`; Phase 5B adds `goal`. Native items are editable and link to Calendar detail routes. Finance, School, Tasks, and Goals items are read-only projections linking to their authoritative module without changing source ownership.
 
 ### 12.4 Finance projection and reconciliation
 
@@ -526,7 +528,7 @@ Dashboard consumes `getSchoolPlanning` and shows this-week assessment count/weig
 
 The intentionally small status lifecycle is `todo`, `in_progress`, and `completed`. A pinned-search-path database trigger sets `completed_at` when a task enters `completed` and clears it when reopened. Reopening therefore returns a task to an active state without erasing the row. Priority is one of `low`, `medium`, `high`, or `urgent`; UI labels always communicate it in text rather than relying on color.
 
-Recurring task sources are deliberately deferred. A source-only recurrence rule without an occurrence exception/completion model would either hide all future occurrences when one occurrence is completed or lose completion history when the source advances. Phase 5B may add bounded recurrence projection only alongside explicit per-occurrence completion semantics; Phase 5A does not create fragile or infinite future rows.
+Recurring task sources are deliberately deferred. A source-only recurrence rule without an occurrence exception/completion model would either hide all future occurrences when one occurrence is completed or lose completion history when the source advances. A future Tasks milestone may add bounded recurrence projection only alongside explicit per-occurrence completion semantics; Phase 5A does not create fragile or infinite future rows.
 
 ### 16.2 Due dates, effort, filtering, and ordering
 
@@ -556,4 +558,56 @@ Dashboard uses the same task summary service for due-today, overdue, and active 
 
 RLS restricts every task operation to `auth.uid() = user_id`; anonymous grants are absent. Least-privilege column grants prevent ownership reassignment, direct completion-timestamp mutation, audit-field mutation, and hard deletion. The assessment composite key provides database-level ownership integrity in addition to RLS. Calendar projection uses the ordinary authenticated client and therefore cannot bypass task RLS.
 
-A future Goals milestone can add a nullable `(goal_id, user_id)` composite foreign key without changing task identity or lifecycle; Phase 5A creates no Goals tables. Future intelligent scheduling may consume due shape, priority, estimated effort, Calendar availability, and assessment context, but does not create work blocks now. Future AI tools must call validated task services such as `getTasks`, `getTasksDueToday`, `getOverdueTasks`, `getUpcomingTasks`, `getTaskSummary`, and the authenticated mutations rather than query arbitrary tables. Phase 5A makes no OpenAI requests and adds no scheduling, analytics, reminders, notifications, Python, ML, or external integrations.
+Phase 5B adds the planned nullable `(goal_id, user_id)` composite foreign key without changing task identity or lifecycle. A task may support one goal and one assessment independently; neither relationship controls Task completion. Future intelligent scheduling may consume due shape, priority, estimated effort, Calendar availability, assessment context, and goal context, but does not create work blocks now. Future AI tools must call validated task services such as `getTasks`, `getTasksDueToday`, `getOverdueTasks`, `getUpcomingTasks`, `getTaskSummary`, and the authenticated mutations rather than query arbitrary tables. No OpenAI requests, scheduling, analytics, reminders, notifications, Python, ML, or external integrations exist.
+
+## 17. Goals Phase 5B: goals, milestones, and Task integration
+
+### 17.1 Goal lifecycle and categories
+
+`goals` is the authoritative user-owned outcome source. It stores title, optional description, a fixed initial category, `active` or `completed` status, optional date-only deadline, explicit progress configuration, completion/archive timestamps, and audit timestamps. Categories are Finance, School, Career, Personal, Health/Fitness, Project, and Other. Categories are labels only and do not drive calculations; custom category tables are intentionally deferred.
+
+Archive state is separate from completion. A pinned-search-path trigger sets `completed_at` when status becomes `completed` and clears it when reopened. Completing or archiving a Goal never mutates its milestones or related Tasks. Authenticated clients have no hard-delete grant, so historical outcomes remain auditable.
+
+Goal deadlines use PostgreSQL `date`. They are never converted to midnight UTC and therefore remain stable across profile timezone changes. Undated Goals never receive invented Calendar dates.
+
+### 17.2 Exact manual progress
+
+The explicit progress modes are:
+
+- `none`: no progress values or unit;
+- `percentage`: one non-negative manual value, with 100 as the conceptual target;
+- `numeric`: non-negative current value, positive target value, and optional unit label.
+
+Authoritative values use PostgreSQL `numeric(20,4)`. Generated read-only decimal-text projections let TypeScript parse values into four-decimal scaled `bigint` without first passing through JavaScript floating point. Inputs cross the PostgREST boundary as validated decimal strings. Unit labels are presentation metadata; `CAD` receives money formatting, but Goals are not forced into Finance ledger semantics.
+
+Actual progress is never silently truncated. A value of `5250 / 5000` remains stored and displays as 105% with a target-exceeded label; only the visual bar is capped at its available width. Reaching or exceeding a target does not complete the Goal. Manual progress is the only Phase 5B source, and future Finance- or School-derived progress must be introduced as a deliberate source mode rather than silently overwriting these values.
+
+### 17.3 Milestones
+
+`goal_milestones` stores lightweight owned checkpoints with title, optional description/date, explicit integer display order, completion/archive timestamps, and audit timestamps. `(goal_id, user_id)` references `goals(id, user_id)`, preventing cross-user parents. A lifecycle trigger normalizes `completed_at`; archival preserves history. Phase 5B supports adding, editing, completing, reopening, ordering by the explicit field, and archiving milestones.
+
+Milestone summaries report `completed / total`, but milestone completion does not derive numeric progress and completing every milestone does not complete the Goal. Milestones are not Tasks, subtasks, habits, or recurrence sources.
+
+### 17.4 Task relationship
+
+`tasks.goal_id` is nullable and uses `(goal_id, user_id) -> goals(id, user_id)`. A Task belongs to at most one Goal in Phase 5B, while its optional School assessment link continues independently. Server Actions validate the selected non-archived Goal through the authenticated RLS-bound client, and the database composite key remains the final ownership boundary.
+
+Task status remains Task-owned. Goal details may report completed/open related Task counts, but completing all Tasks does not complete the Goal, and completing the Goal does not change its Tasks. The Goals detail page offers an explicit unsaved related-Task form shortcut; automatic Task generation does not exist.
+
+### 17.5 Calendar and Dashboard projections
+
+`features/goals/calendar-provider.ts` performs bounded ordinary-session reads and maps active, non-archived, dated Goals to read-only `CalendarItem` values with source type `goal`. Items include category and optional exact progress summary and link to the Goal detail page. Completed, archived, and undated Goals are excluded, including from historical Calendar ranges. No native Calendar event or duplicate Goal row is created.
+
+The shared aggregation is now:
+
+```text
+Native + Finance + School + Tasks + Goals -> CalendarItem[]
+```
+
+Dashboard consumes `getGoalSummary` for active count, overdue deadlines, next deadline, progress/milestone summaries, and concise Goal cards. Calendar and Dashboard do not reproduce Goal queries or progress arithmetic inside their page components.
+
+### 17.6 Security and future boundaries
+
+Goals and milestones use authenticated-only RLS and least-privilege column grants. Ownership, generated exact-value projections, completion timestamps, and audit fields cannot be supplied or reassigned by browser updates. Composite foreign keys protect Goal-to-milestone and Goal-to-Task ownership. Calendar projection uses the ordinary authenticated client, so it cannot bypass RLS.
+
+Future Finance-derived savings progress or School-derived academic progress requires an explicit source model and reconciliation rules; Phase 5B performs no automatic cross-domain calculation. Future planning may reason over Goal, milestone, Task, deadline, effort, and Calendar availability, but creates no suggestions or work blocks. Future AI must call validated Goals services (`getGoals`, `getGoal`, `getActiveGoals`, `getUpcomingGoalDeadlines`, `getGoalSummary`, and authenticated mutations), never arbitrary tables. Habit tracking, recurring Goals/Tasks, analytics, notification delivery, OpenAI calls, Python/ML, and external integrations remain outside this phase.

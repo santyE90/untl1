@@ -5,7 +5,7 @@ import { projectCourseMeetings } from "../school/meeting-projection";
 import { taskToCalendarItem } from "./projection";
 import type { TaskWithContext } from "./types";
 
-const task = (overrides: Partial<TaskWithContext> = {}): TaskWithContext => ({ id: "task-1", title: "Finish assignment", description: null, status: "todo", priority: "high", due_date: "2026-09-14", due_at: null, estimated_effort_minutes: 120, assessment_id: null, completed_at: null, archived_at: null, created_at: "2026-09-01T00:00:00Z", updated_at: "2026-09-01T00:00:00Z", assessment: null, ...overrides });
+const task = (overrides: Partial<TaskWithContext> = {}): TaskWithContext => ({ id: "task-1", title: "Finish assignment", description: null, status: "todo", priority: "high", due_date: "2026-09-14", due_at: null, estimated_effort_minutes: 120, assessment_id: null, goal_id: null, completed_at: null, archived_at: null, created_at: "2026-09-01T00:00:00Z", updated_at: "2026-09-01T00:00:00Z", assessment: null, goal: null, ...overrides });
 
 describe("Task Calendar projection", () => {
   it("projects date-only and timed due shapes without creating native events", () => {

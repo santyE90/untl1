@@ -11,6 +11,7 @@ export type TaskRecord = {
   due_at: string | null;
   estimated_effort_minutes: number | null;
   assessment_id: string | null;
+  goal_id: string | null;
   completed_at: string | null;
   archived_at: string | null;
   created_at: string;
@@ -19,4 +20,5 @@ export type TaskRecord = {
 
 export type TaskWithContext = TaskRecord & {
   assessment: { id: string; name: string; courseId: string; courseCode: string } | null;
+  goal: { id: string; title: string } | null;
 };

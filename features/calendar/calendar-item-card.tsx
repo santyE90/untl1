@@ -1,4 +1,4 @@
-import { ArrowUpRight, Bell, BookOpen, CalendarDays, CheckSquare2, ClipboardCheck, FileText, GraduationCap, MapPin, Presentation, ReceiptText, Repeat2, WalletCards } from "lucide-react";
+import { ArrowUpRight, Bell, BookOpen, CalendarDays, CheckSquare2, ClipboardCheck, FileText, GraduationCap, MapPin, Presentation, ReceiptText, Repeat2, Target, WalletCards } from "lucide-react";
 import Link from "next/link";
 
 import { formatMoney } from "@/features/finance/money";
@@ -8,7 +8,7 @@ import { formatCalendarTime } from "./dates";
 import type { CalendarItem } from "./types";
 
 export function CalendarItemCard({ compact = false, item, open = false, timeZone }: { compact?: boolean; item: CalendarItem; open?: boolean; timeZone: string }) {
-  const Icon = item.sourceType === "native" ? CalendarDays : item.sourceType === "bill" ? ReceiptText : item.sourceType === "income" ? WalletCards : item.sourceType === "course_meeting" ? BookOpen : item.sourceType === "task" ? CheckSquare2 : item.type === "quiz" ? ClipboardCheck : item.type === "project" || item.type === "presentation" ? Presentation : item.type === "midterm" || item.type === "final exam" ? GraduationCap : FileText;
+  const Icon = item.sourceType === "native" ? CalendarDays : item.sourceType === "bill" ? ReceiptText : item.sourceType === "income" ? WalletCards : item.sourceType === "course_meeting" ? BookOpen : item.sourceType === "task" ? CheckSquare2 : item.sourceType === "goal" ? Target : item.type === "quiz" ? ClipboardCheck : item.type === "project" || item.type === "presentation" ? Presentation : item.type === "midterm" || item.type === "final exam" ? GraduationCap : FileText;
   const amount = item.amount && item.currency ? `${item.amount.startsWith("+") ? "+" : "-"}${formatMoney(item.amount.replace(/^[+-]/, ""), item.currency)} ${item.currency}` : null;
   const body = <>
     <div className="flex min-w-0 items-start gap-2">
@@ -31,6 +31,6 @@ export function CalendarItemCard({ compact = false, item, open = false, timeZone
     {item.recurrence ? <p className="flex items-center gap-2 capitalize text-muted-foreground"><Repeat2 className="size-4" /> Repeats {item.recurrence.frequency} · entire series editing</p> : null}
     {item.reminderOffsets.length ? <p className="flex items-center gap-2 text-muted-foreground"><Bell className="size-4" /> {item.reminderOffsets.length} event {item.reminderOffsets.length === 1 ? "reminder" : "reminders"} configured</p> : null}
     {item.sourceType === "bill" || item.sourceType === "income" ? <p className="text-muted-foreground">Payment account: <span className="font-medium text-foreground">{String(item.metadata.accountName ?? "Unassigned")}</span></p> : null}
-    <Link className="inline-flex min-h-10 items-center gap-1 font-semibold text-primary hover:underline" href={item.sourceUrl}>{item.isEditable ? "View event" : item.sourceType === "bill" || item.sourceType === "income" ? "View in Finance" : item.sourceType === "task" ? "View task" : "View course"}<ArrowUpRight className="size-4" /></Link>
+    <Link className="inline-flex min-h-10 items-center gap-1 font-semibold text-primary hover:underline" href={item.sourceUrl}>{item.isEditable ? "View event" : item.sourceType === "bill" || item.sourceType === "income" ? "View in Finance" : item.sourceType === "task" ? "View task" : item.sourceType === "goal" ? "View goal" : "View course"}<ArrowUpRight className="size-4" /></Link>
   </div></details>;
 }

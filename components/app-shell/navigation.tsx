@@ -28,14 +28,14 @@ const navigationItems = [
   { href: "/calendar", label: "Calendar", icon: CalendarDays, ready: true },
   { href: "/school", label: "School", icon: GraduationCap, ready: true },
   { href: "/tasks", label: "Tasks", icon: CheckSquare2, ready: true },
-  { href: "/goals", label: "Goals", icon: Target },
+  { href: "/goals", label: "Goals", icon: Target, ready: true },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/assistant", label: "AI Assistant", icon: Bot },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 const mobileItems = navigationItems.filter(({ href }) =>
-  ["/dashboard", "/finance", "/calendar", "/school", "/tasks", "/settings"].includes(href),
+  ["/dashboard", "/finance", "/calendar", "/school", "/tasks", "/goals"].includes(href),
 );
 
 function NavLink({ item, compact = false }: { item: (typeof navigationItems)[number]; compact?: boolean }) {

@@ -1,6 +1,6 @@
 # LifeStack
 
-LifeStack is a responsive personal-management application built with Next.js 16 and Supabase. It includes authentication, Finance, a source-aware Calendar, deterministic academic planning, and user-owned Tasks projected into the shared Calendar.
+LifeStack is a responsive personal-management application built with Next.js 16 and Supabase. It includes authentication, Finance, a source-aware Calendar, deterministic academic planning, Tasks, and measurable Goals with lightweight milestones.
 
 [docs/project-architecture.md](docs/project-architecture.md) is the detailed source of truth for schema decisions, ledger semantics, security boundaries, and roadmap.
 
@@ -40,7 +40,7 @@ Open <http://localhost:3000>.
 
 ## Hosted Supabase migrations
 
-Hosted migrations are never applied automatically. Migrations through School Phase 4B are accepted on hosted Supabase; Tasks Phase 5A adds one pending migration:
+Hosted migrations are never applied automatically. Migrations through Tasks Phase 5A are accepted on hosted Supabase; Goals Phase 5B adds one pending migration:
 
 ```text
 supabase/migrations/20260826000100_create_profiles.sql
@@ -52,24 +52,25 @@ supabase/migrations/20260827000400_calendar_recurrence_reminders.sql
 supabase/migrations/20260827000500_school_core.sql
 supabase/migrations/20260827000600_school_planning.sql
 supabase/migrations/20260827000700_tasks_core.sql
+supabase/migrations/20260827000800_goals_core.sql
 ```
 
-For the pending Tasks migration, inspect it and run:
+For the pending Goals migration, inspect it and run:
 
 ```bash
 npm run db:push
 npm run db:types:linked
 ```
 
-Confirm the push prompt lists only `20260827000700_tasks_core.sql`. The second command replaces the provisional `types/database.ts` additions with hosted generated types after the schema exists. No additional Supabase dashboard settings are required.
+Confirm the push prompt lists only `20260827000800_goals_core.sql`. The second command replaces the provisional `types/database.ts` additions with hosted generated types after the schema exists. No additional Supabase dashboard settings are required.
 
 If SQL Editor is preferred, run the entire pending migration there, then repair/confirm CLI migration history before a future `db:push`; do not let the CLI reapply the same SQL.
 
-The Phase 5A Tasks migration:
+The Phase 5B Goals migration:
 
-- adds private tasks with lifecycle, priority, due-date, and effort fields;
-- links tasks optionally to owned School assessments;
-- normalizes completion timestamps in PostgreSQL;
+- adds private Goals with explicit lifecycle, date-only deadlines, and exact manual progress;
+- adds lightweight owned milestones with completion and archive history;
+- links Tasks optionally to owned Goals without changing Task lifecycle;
 - applies composite ownership, RLS, least-privilege grants, and no hard-delete access.
 
 ## Quality commands
@@ -92,7 +93,7 @@ npm run db:types:local
 npm run db:stop
 ```
 
-`db:test` runs profile, Finance, Calendar, School, and Tasks pgTAP isolation tests. A local reset affects only the local Supabase stack, never the hosted database.
+`db:test` runs profile, Finance, Calendar, School, Tasks, and Goals pgTAP isolation tests. A local reset affects only the local Supabase stack, never the hosted database.
 
 ## Repository map
 
@@ -103,6 +104,7 @@ features/finance/    Finance actions, queries, exact calculations, charts, valid
 features/calendar/   Calendar projection, timezone, CRUD, validation, queries, and UI
 features/school/     School actions, exact grade calculations, projections, validation, queries, and UI
 features/tasks/      Task actions, lifecycle/date services, projections, validation, queries, and UI
+features/goals/      Goal progress, milestones, actions, queries, validation, projections, and UI
 lib/                 authentication and Supabase infrastructure
 supabase/migrations/ ordered schema history
 supabase/tests/      pgTAP security/isolation suites
@@ -122,7 +124,7 @@ docs/                durable architecture and project decisions
 
 ## Scope
 
-Implemented through Tasks Phase 5A:
+Implemented through Goals Phase 5B:
 
 - signup, email confirmation, login/logout, protected sessions, and profiles;
 - responsive desktop/mobile application shell;
@@ -152,5 +154,9 @@ Implemented through Tasks Phase 5A:
 - task create/edit/complete/reopen/archive workflows with deterministic filters and sorting;
 - optional School assessment linking and explicit create-task prefilling;
 - source-aware Task Calendar projections and concise Dashboard task summaries.
+- goal create/edit/complete/reopen/archive workflows and date-only deadlines;
+- exact manual percentage or numeric-target progress with unclamped over-target values;
+- lightweight milestones and optional owned Task-to-Goal links;
+- source-aware Goal Calendar projections and concise Dashboard Goal summaries.
 
-Deferred until later approval: recurring-task occurrence completion, Goals, intelligent scheduling, task analytics, syllabus parsing/import, LMS/external integrations, notification delivery, AI, and Python/ML.
+Deferred until later approval: recurring-task occurrence completion, Finance/School-derived Goal progress, intelligent scheduling, Goal/Task analytics, habit tracking, notifications, external integrations, AI, and Python/ML.

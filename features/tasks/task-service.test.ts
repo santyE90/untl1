@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { filterTasks, formatEffort, sortTasks, summarizeTasks, taskBucket, taskDueLocalDate } from "./task-service";
 import type { TaskRecord } from "./types";
 
-const task = (overrides: Partial<TaskRecord> = {}): TaskRecord => ({ id: crypto.randomUUID(), title: "Task", description: null, status: "todo", priority: "medium", due_date: null, due_at: null, estimated_effort_minutes: null, assessment_id: null, completed_at: null, archived_at: null, created_at: "2026-09-01T12:00:00Z", updated_at: "2026-09-01T12:00:00Z", ...overrides });
+const task = (overrides: Partial<TaskRecord> = {}): TaskRecord => ({ id: crypto.randomUUID(), title: "Task", description: null, status: "todo", priority: "medium", due_date: null, due_at: null, estimated_effort_minutes: null, assessment_id: null, goal_id: null, completed_at: null, archived_at: null, created_at: "2026-09-01T12:00:00Z", updated_at: "2026-09-01T12:00:00Z", ...overrides });
 
 describe("Task date classification", () => {
   it("keeps date-only tasks on their literal local date", () => {
