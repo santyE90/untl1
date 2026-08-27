@@ -1,4 +1,4 @@
-export type CalendarSourceType = "native" | "bill" | "income";
+export type CalendarSourceType = "native" | "bill" | "income" | "course_meeting" | "assessment";
 export type NativeRecurrenceFrequency = "daily" | "weekly" | "monthly" | "yearly";
 
 export type CalendarItem = {

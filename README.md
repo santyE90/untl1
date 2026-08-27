@@ -1,6 +1,6 @@
 # LifeStack
 
-LifeStack is a responsive personal-management application built with Next.js 16 and Supabase. The working application includes public email/password authentication, private profiles, a responsive app shell, Finance, and a source-aware Calendar that projects recurring bills and paydays without duplicating them.
+LifeStack is a responsive personal-management application built with Next.js 16 and Supabase. It includes authentication, Finance, a source-aware Calendar, and deterministic academic planning with School-owned schedule and assessment projections.
 
 [docs/project-architecture.md](docs/project-architecture.md) is the detailed source of truth for schema decisions, ledger semantics, security boundaries, and roadmap.
 
@@ -40,7 +40,7 @@ Open <http://localhost:3000>.
 
 ## Hosted Supabase migrations
 
-Hosted migrations are never applied automatically. The first five migrations are accepted on hosted Supabase; Calendar Phase 3B adds one pending migration:
+Hosted migrations are never applied automatically. Migrations through School Phase 4A are accepted on hosted Supabase; School Phase 4B adds one pending migration:
 
 ```text
 supabase/migrations/20260826000100_create_profiles.sql
@@ -49,25 +49,27 @@ supabase/migrations/20260827000100_budgeting_analytics.sql
 supabase/migrations/20260827000200_cash_flow_planning.sql
 supabase/migrations/20260827000300_calendar_core.sql
 supabase/migrations/20260827000400_calendar_recurrence_reminders.sql
+supabase/migrations/20260827000500_school_core.sql
+supabase/migrations/20260827000600_school_planning.sql
 ```
 
-For the pending Calendar migration, inspect it and run:
+For the pending School migration, inspect it and run:
 
 ```bash
 npm run db:push
 npm run db:types:linked
 ```
 
-Confirm the push prompt lists only `20260827000400_calendar_recurrence_reminders.sql`. The second command replaces `types/database.ts` with hosted generated types after the schema exists. No additional Supabase dashboard settings are required for Calendar.
+Confirm the push prompt lists only `20260827000600_school_planning.sql`. The second command replaces the provisional `types/database.ts` additions with hosted generated types after the schema exists. No additional Supabase dashboard settings are required.
 
-If SQL Editor is preferred, run the entire Calendar migration there, then repair/confirm CLI migration history before a future `db:push`; do not let the CLI reapply the same SQL.
+If SQL Editor is preferred, run the entire pending migration there, then repair/confirm CLI migration history before a future `db:push`; do not let the CLI reapply the same SQL.
 
-The Phase 3B Calendar migration:
+The Phase 4B School migration:
 
-- adds source-level native recurrence without generated occurrence rows;
-- stores timed-series timezone semantics and optional recurrence end dates;
-- adds isolated source-level reminder configuration and an atomic save function;
-- stores the user’s preferred Month/Week/Day/Agenda view.
+- adds optional user-entered assessment effort estimates;
+- adds owned, soft-archived course resource links;
+- enforces parent-first term/course/assessment restoration;
+- retains School as the source of truth without persisting derived workload or scenarios.
 
 ## Quality commands
 
@@ -89,7 +91,7 @@ npm run db:types:local
 npm run db:stop
 ```
 
-`db:test` runs profile, Finance, and Calendar pgTAP isolation tests. A local reset affects only the local Supabase stack, never the hosted database.
+`db:test` runs profile, Finance, Calendar, and School pgTAP isolation tests. A local reset affects only the local Supabase stack, never the hosted database.
 
 ## Repository map
 
@@ -98,6 +100,7 @@ app/                 routes, layouts, and HTTP boundaries
 components/          app shell and shared UI
 features/finance/    Finance actions, queries, exact calculations, charts, validation, UI
 features/calendar/   Calendar projection, timezone, CRUD, validation, queries, and UI
+features/school/     School actions, exact grade calculations, projections, validation, queries, and UI
 lib/                 authentication and Supabase infrastructure
 supabase/migrations/ ordered schema history
 supabase/tests/      pgTAP security/isolation suites
@@ -117,7 +120,7 @@ docs/                durable architecture and project decisions
 
 ## Scope
 
-Implemented through Calendar Phase 3B:
+Implemented through School Phase 4B:
 
 - signup, email confirmation, login/logout, protected sessions, and profiles;
 - responsive desktop/mobile application shell;
@@ -138,5 +141,11 @@ Implemented through Calendar Phase 3B:
 - native daily/weekly/monthly/yearly series with bounded DST-aware projection;
 - responsive Month, Week, Day, and 90-day Agenda views with overlap layout;
 - series-level reminder configuration, archive restoration, and default-view preference.
+- academic terms, courses, weekly multi-day meeting schedules, and assessments;
+- exact completed-work grades, earned course points, weighting warnings, required-grade and what-if scenarios;
+- read-only School meeting/assessment projections in Calendar and concise School context on Dashboard.
+- target standing, required remaining averages, and ephemeral multi-assessment scenarios;
+- cross-course workload ranges, major-assessment views, semester progress, and timezone-correct days-until labels;
+- archive restoration, grouped schedules, course resource links, and optional effort summaries.
 
-Deferred until later approval: occurrence exceptions, external calendar sync, notification delivery/workers/channels, drag-and-drop rescheduling, discretionary estimates, mark-paid/received workflow, predictive or ML forecasting, receipt OCR, bank imports, School, Tasks, Goals, AI, and Python/ML.
+Deferred until later approval: syllabus parsing/import, LMS integrations, occurrence exceptions, external calendar sync, notification delivery/workers/channels, drag-and-drop rescheduling, Tasks, Goals, AI, and Python/ML.

@@ -1,10 +1,10 @@
 # LifeStack: Project Architecture
 
-Status: Finance through Phase 2C and Calendar Phase 3A accepted; Calendar Phase 3B implemented locally
+Status: Finance through Phase 2C, Calendar through Phase 3B, and School Phase 4A accepted; School Phase 4B implemented locally
 
 Last reviewed: 2026-08-27
 
-Current boundary: Complete Calendar Phase 3B only. Do not begin School, Tasks, Goals, AI, external integrations, notification delivery, OCR, Python, or ML until a later milestone is approved.
+Current boundary: Complete School Phase 4B only. Do not begin Tasks, Goals, AI, syllabus parsing, LMS/external integrations, notification delivery, OCR, Python, or ML until a later milestone is approved.
 
 This is the durable architectural source of truth for LifeStack. It records decisions that future implementation sessions must preserve.
 
@@ -145,7 +145,7 @@ Finance remains authoritative for `recurring_bills.next_due_date` and `recurring
 ```ts
 type CalendarItem = {
   id: string
-  sourceType: "native" | "bill" | "income"
+  sourceType: "native" | "bill" | "income" | "course_meeting" | "assessment"
   sourceId: string
   title: string
   start: string
@@ -192,9 +192,11 @@ Migration history:
 3. `20260827000100_budgeting_analytics.sql` - Phase 2B budget schema and atomic save function; applied and accepted.
 4. `20260827000200_cash_flow_planning.sql` - Phase 2C account-optional schedules and occurrence-reconciliation constraints; applied and accepted.
 5. `20260827000300_calendar_core.sql` - Phase 3A private native events, integrity constraints, indexes, RLS, and grants; applied and accepted.
-6. `20260827000400_calendar_recurrence_reminders.sql` - Phase 3B source recurrence, reminder configuration, and default-view preference; pending owner application.
+6. `20260827000400_calendar_recurrence_reminders.sql` - Phase 3B source recurrence, reminder configuration, and default-view preference; applied and accepted.
+7. `20260827000500_school_core.sql` - Phase 4A academic hierarchy, grade inputs, weekly schedules, ownership constraints, RLS, and grants; applied and accepted.
+8. `20260827000600_school_planning.sql` - Phase 4B effort input, course resources, and parent-aware restoration integrity; pending owner application.
 
-The CLI is linked. After review, apply pending migrations with `npm run db:push`, inspect the output before confirming, then run `npm run db:types:linked`. `types/database.ts` carries the last hosted generated schema plus the pending local Calendar shape so the application can compile before the migration exists remotely; linked generation becomes authoritative immediately after push.
+The CLI is linked. After review, apply pending migrations with `npm run db:push`, inspect the output before confirming, then run `npm run db:types:linked`. `types/database.ts` carries the last hosted generated schema plus the pending local School shape so the application can compile before the migration exists remotely; linked generation becomes authoritative immediately after push.
 
 Docker is optional for application development but required by the local Supabase stack and `npm run db:test`. Never assume a local reset has changed hosted infrastructure.
 
@@ -205,9 +207,11 @@ Docker is optional for application development but required by the local Supabas
 - Phase 2B: Monthly budgeting and deterministic Finance analytics - accepted.
 - Phase 2C: Account-optional schedules and deterministic known cash-flow planning - accepted.
 - Phase 3A: Native Calendar plus Finance projections - accepted.
-- Phase 3B: Native recurrence, richer views, reminders, and archive restoration - implemented locally, awaiting hosted migration and browser acceptance.
+- Phase 3B: Native recurrence, richer views, reminders, and archive restoration - accepted.
+- Phase 4A: Academic core, exact grade tracking, and Calendar projection - accepted.
+- Phase 4B: Academic planning, workload, course resources, and restoration - implemented locally, awaiting hosted migration and browser acceptance.
 - Future Finance: mark-paid reconciliation workflow, recurrence advancement, discretionary estimation, import/reconciliation, and richer planning - blocked pending review.
-- Later: Calendar recurrence/week view, School, Tasks/Goals, notifications, controlled AI, integrations/data science.
+- Later: School import/enrichment, Tasks/Goals, notifications, controlled AI, integrations/data science.
 
 Deferred finance decisions include currency conversion, import/deduplication, receipt storage/OCR, automatic recurring transaction generation, richer recurrence rules, editing/voiding an entire transfer, discretionary estimation, and subscription detection.
 
@@ -374,7 +378,7 @@ The profile IANA timezone is authoritative; Toronto is only the profile default.
 
 `features/calendar/queries.ts#getCalendarItems` is the RLS-bound orchestration service. It accepts an inclusive date range, executes bounded native and Finance queries with the user's ordinary Supabase session, maps each source to `CalendarItem`, filters to the visible range, and returns one chronological collection. The Calendar page and Dashboard both consume this service; page components do not reproduce source queries.
 
-Phase 3A source types are `native`, `bill`, and `income`. Native items are editable and link to Calendar detail routes. Bill/income items are read-only projections and link to `/finance#recurring`. Future source adapters can map School, Tasks, or Goals into the DTO without changing source ownership.
+Phase 3A introduced `native`, `bill`, and `income`; Phase 4A added `course_meeting` and `assessment`. Native items are editable and link to Calendar detail routes. Finance and School items are read-only projections linking to their authoritative module. Future Tasks or Goals adapters can use the same DTO without changing source ownership.
 
 ### 12.4 Finance projection and reconciliation
 
@@ -431,3 +435,83 @@ The normalized `CalendarItem` exposes typed `recurrence` and `reminderOffsets` f
 `/calendar/settings` lists only the current user’s archived native sources and restores them by clearing `archived_at` through the ordinary authenticated client. Restoring a recurring source restores its projected series and source-level reminder configuration. Normal Calendar queries continue filtering archived sources before expansion.
 
 No service-role client is introduced. Native events, reminders, profile preference updates, and Finance reads all retain their existing RLS boundaries. Reminder writes are restricted to the pinned-search-path authenticated function; anonymous and direct browser writes are denied.
+
+## 14. School Phase 4A: academic core, grades, and projections
+
+### 14.1 Ownership and hierarchy
+
+`academic_terms` is the user-owned semester/term boundary. `courses` belongs to a term; `course_meetings` and `assessments` belong to a course. Every table also carries `user_id`, and composite foreign keys such as `(term_id, user_id)` and `(course_id, user_id)` make cross-user parent references impossible even if an application query is wrong. All four tables use RLS, authenticated-only least-privilege column grants, immutable ownership/audit fields, and no browser hard-delete grant.
+
+Terms, courses, and assessments use `archived_at` so historical academic records can remain auditable. Meeting sources use `is_active` because pausing and resuming a weekly schedule is the relevant lifecycle. Archiving a parent hides it from active School and Calendar queries without manufacturing cascading archive writes.
+
+### 14.2 Schedule and assessment model
+
+A course may have multiple `course_meetings` rows. Each row represents one weekday, local start/end time, IANA timezone, meeting type/location, and inclusive effective date range bounded by its term. Selecting Monday and Wednesday creates two authoritative weekly source rows rather than serialized weekday data.
+
+Assessments support three mutually exclusive timing shapes: a deadline instant, a scheduled start/end interval (for exams or presentations), or a timezone-free all-day date. Types, status, weight, optional raw points, location, and notes remain School-owned. Database and Zod checks require valid timing shapes, positive weights, paired scores, earned points no greater than maximum points, and scores for `graded` status.
+
+### 14.3 Exact grade semantics
+
+PostgreSQL stores weights and raw scores as `numeric`; TypeScript grade calculations parse decimal strings into scaled `bigint` values with four decimal places. JavaScript floating point is not used for authoritative grade math.
+
+For non-exempt assessments explicitly marked `graded`:
+
+```text
+earned course points = sum((earned / maximum) * assessment weight)
+completed-work grade = earned course points / graded weight * 100
+```
+
+The UI presents these as separate values. Upcoming/submitted work does not depress the completed-work denominator. Configured weight is also reported independently, with a warning when active non-exempt weights differ from 100%. Required-grade and what-if calculations operate on exact earned course points; the single-assessment calculator explicitly assumes other ungraded assessments contribute zero, so it cannot be mistaken for a hidden forecast.
+
+### 14.4 Calendar and Dashboard boundary
+
+School remains authoritative for meeting patterns and assessment dates. The School Calendar provider executes bounded RLS-filtered reads using the user's ordinary Supabase session. It expands weekly meeting occurrences only inside the requested range and maps assessments directly to the shared `CalendarItem` contract. Stable meeting occurrence IDs are `course_meeting:<source-id>:<date>` and assessment IDs are `assessment:<assessment-id>`.
+
+`course_meeting` and `assessment` Calendar items are read-only projections linking back to their course. No duplicate Calendar rows are created, and archiving a course/term/assessment or pausing a meeting removes its projections. Weekly wall-clock times are resolved in the stored IANA timezone for each occurrence, preserving local class time across DST. Dashboard consumes the same Calendar aggregation and School query service rather than duplicating date or grade rules.
+
+### 14.5 Deferred School scope
+
+Syllabus upload/parsing, OCR, LMS/import integrations, assignment-to-Task conversion, course reminder delivery, attendance, predictive grades, AI study tools, Python, and ML are intentionally deferred. Future consumers must call the School service/calculation layer rather than query arbitrary tables or reimplement grade formulas.
+
+## 15. School Phase 4B: planning, workload, and course management
+
+### 15.1 Assessment-group decision
+
+Phase 4B retains the explicit per-assessment weight model. It directly represents the common individually weighted syllabus (`Assignment 1 = 10%`, `Assignment 2 = 10%`) and keeps every grade contribution auditable. A group-weighted model would additionally need a declared within-group strategy, late additions/removals, exempt-item redistribution, point-proportional versus equal allocation, and rounding rules. Those semantics are not interchangeable, so LifeStack does not guess or introduce a partial grading-rule engine. A future milestone may add groups only with explicit allocation rules and migration behavior.
+
+### 15.2 Target standing and exact scenarios
+
+All authoritative grade inputs remain PostgreSQL `numeric`, and `features/school/grades.ts` performs deterministic four-decimal scaled-`bigint` arithmetic. Presentation formatting is separate and normally shows one decimal place.
+
+```text
+points still needed = max(target - earned course points, 0)
+required remaining average = points still needed / remaining configured weight * 100
+```
+
+The result distinguishes missing target, mathematically achievable, already secured, impossible above 100%, and no remaining weight. Weight delta remains visible when configured non-exempt weights are below or above 100%; a required average based on an incomplete configuration is therefore never presented without that warning.
+
+The multi-assessment planner keeps graded and missed contributions fixed, accepts ephemeral percentages only for ungraded/non-exempt assessments, and never writes scenarios to Supabase. Solving one assessment subtracts the fixed graded points and all other hypothetical contributions before applying the existing single-assessment formula to the selected weight.
+
+`missed` deliberately represents a fixed zero: its weight counts as handled/graded weight and it contributes zero course points. The application clears score inputs when marking work missed. `exempt` is omitted from configured, graded, and remaining effective weight; LifeStack does not silently redistribute its syllabus weight. Entering a complete score pair marks work graded. Clearing both fields from graded work returns it to upcoming, preventing contradictory status/score combinations.
+
+### 15.3 Workload and semester services
+
+`getUpcomingAssessments({ start, end, termId? })` is the RLS-bound cross-course service for School Planning, Dashboard, future Tasks, and future controlled AI tools. Pure helpers convert assessment instants to profile-local calendar dates, filter inclusive ranges, identify major types, calculate days-until labels, and summarize user-entered effort.
+
+School Planning offers inclusive 7-, 14-, 30-day, and rest-of-term ranges. Its transparent concentration metrics are assessment count, summed course weight, and optional entered effort. Summed weights across different courses are explicitly not a difficulty score. Effort is stored as optional integer minutes on the assessment, is never generated, and is reported as “across N of M assessments” so missing estimates are not implied to be zero.
+
+Major assessment classification is type-driven: midterm, final exam, project, and presentation. Weight alone does not make an assessment “major.” Semester progress is elapsed calendar days divided by inclusive term days, clamped before and after the term; it makes no claim about academic performance. Assessment progress excludes exempt work and treats submitted, graded, and missed work as handled.
+
+### 15.4 Term navigation, restoration, and resources
+
+School and Planning use an explicit URL term selection, falling back to the term containing today and then the most recent active term. Historical active terms remain readable without replacing the current-term default.
+
+`/school/archive` restores terms, courses, and assessments in parent-first order. Database triggers reject restoring a course under an archived term or an assessment under an archived course/term, even if a Server Action is forged. Restoring a parent only clears that parent's own `archived_at`; independently archived descendants remain archived. Descendants that were merely hidden by their parent become visible again because their own state was never mutated.
+
+`course_resources` stores user-owned HTTP(S) links with a label, type, order, timestamps, and soft archive. Composite `(course_id, user_id)` ownership prevents cross-user links; RLS and column grants prevent cross-user access, owner reassignment, audit-field mutation, and hard deletion. Resource types cover course website, LMS, syllabus, textbook, repository, lecture notes, and other. This is link metadata only—there is no file storage, PDF parsing, OCR, or notes system.
+
+### 15.5 Calendar, Dashboard, and future boundaries
+
+Calendar continues to project School-owned meetings and assessments without duplicate rows. Assessment type remains visible in text and gains type-specific icons so color is not the only distinction; weight stays in expandable detail rather than overcrowding grids. Identical course meeting rows are grouped for course-page display by type, time, location, effective range, and active state without changing the normalized weekday-row schema.
+
+Dashboard consumes `getSchoolPlanning` and shows this-week assessment count/weight and the next major assessment. It does not reimplement date filtering or grade formulas. Future Tasks may reference stable assessment IDs but no tasks are created. Future intelligent scheduling may combine user-entered effort with free Calendar blocks, but Phase 4B does not suggest study blocks. Future syllabus ingestion may store a document, parse into proposed School rows, and require user confirmation; no document table or storage bucket is created until that workflow has concrete retention and security requirements. School reminders may later project reminder configuration from School-owned sources without becoming native Calendar events; no duplicate reminder rows or delivery system exists now.

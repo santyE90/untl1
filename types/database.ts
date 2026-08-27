@@ -14,6 +14,134 @@ export type Database = {
   }
   public: {
     Tables: {
+      academic_terms: {
+        Row: {
+          academic_year: string | null
+          archived_at: string | null
+          created_at: string
+          end_date: string
+          id: string
+          name: string
+          start_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          academic_year?: string | null
+          archived_at?: string | null
+          created_at?: string
+          end_date: string
+          id?: string
+          name: string
+          start_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          academic_year?: string | null
+          archived_at?: string | null
+          created_at?: string
+          end_date?: string
+          id?: string
+          name?: string
+          start_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_terms_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assessments: {
+        Row: {
+          archived_at: string | null
+          assessment_type: string
+          course_id: string
+          created_at: string
+          due_at: string | null
+          ends_at: string | null
+          estimated_effort_minutes: number | null
+          event_date: string | null
+          id: string
+          location: string | null
+          name: string
+          notes: string | null
+          score_earned: number | null
+          score_max: number | null
+          starts_at: string | null
+          status: string
+          timing_type: string
+          updated_at: string
+          user_id: string
+          weight_percent: number
+        }
+        Insert: {
+          archived_at?: string | null
+          assessment_type: string
+          course_id: string
+          created_at?: string
+          due_at?: string | null
+          ends_at?: string | null
+          estimated_effort_minutes?: number | null
+          event_date?: string | null
+          id?: string
+          location?: string | null
+          name: string
+          notes?: string | null
+          score_earned?: number | null
+          score_max?: number | null
+          starts_at?: string | null
+          status?: string
+          timing_type: string
+          updated_at?: string
+          user_id: string
+          weight_percent: number
+        }
+        Update: {
+          archived_at?: string | null
+          assessment_type?: string
+          course_id?: string
+          created_at?: string
+          due_at?: string | null
+          ends_at?: string | null
+          estimated_effort_minutes?: number | null
+          event_date?: string | null
+          id?: string
+          location?: string | null
+          name?: string
+          notes?: string | null
+          score_earned?: number | null
+          score_max?: number | null
+          starts_at?: string | null
+          status?: string
+          timing_type?: string
+          updated_at?: string
+          user_id?: string
+          weight_percent?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessments_course_id_user_id_fkey"
+            columns: ["course_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "assessments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_event_reminders: {
         Row: {
           created_at: string
@@ -114,6 +242,195 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "calendar_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_meetings: {
+        Row: {
+          course_id: string
+          created_at: string
+          effective_end_date: string
+          effective_start_date: string
+          end_time: string
+          id: string
+          is_active: boolean
+          location: string | null
+          meeting_type: string
+          start_time: string
+          timezone: string
+          updated_at: string
+          user_id: string
+          weekday: number
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          effective_end_date: string
+          effective_start_date: string
+          end_time: string
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          meeting_type?: string
+          start_time: string
+          timezone: string
+          updated_at?: string
+          user_id: string
+          weekday: number
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          effective_end_date?: string
+          effective_start_date?: string
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          meeting_type?: string
+          start_time?: string
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_meetings_course_id_user_id_fkey"
+            columns: ["course_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "course_meetings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_resources: {
+        Row: {
+          archived_at: string | null
+          course_id: string
+          created_at: string
+          id: string
+          label: string
+          resource_type: string
+          sort_order: number
+          updated_at: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          course_id: string
+          created_at?: string
+          id?: string
+          label: string
+          resource_type?: string
+          sort_order?: number
+          updated_at?: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          course_id?: string
+          created_at?: string
+          id?: string
+          label?: string
+          resource_type?: string
+          sort_order?: number
+          updated_at?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_resources_course_id_user_id_fkey"
+            columns: ["course_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "course_resources_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courses: {
+        Row: {
+          archived_at: string | null
+          code: string
+          color_key: string
+          course_url: string | null
+          created_at: string
+          id: string
+          instructor: string | null
+          location: string | null
+          name: string
+          notes: string | null
+          section: string | null
+          target_grade: number | null
+          term_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          code: string
+          color_key?: string
+          course_url?: string | null
+          created_at?: string
+          id?: string
+          instructor?: string | null
+          location?: string | null
+          name: string
+          notes?: string | null
+          section?: string | null
+          target_grade?: number | null
+          term_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          code?: string
+          color_key?: string
+          course_url?: string | null
+          created_at?: string
+          id?: string
+          instructor?: string | null
+          location?: string | null
+          name?: string
+          notes?: string | null
+          section?: string | null
+          target_grade?: number | null
+          term_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courses_term_id_user_id_fkey"
+            columns: ["term_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "academic_terms"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "courses_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"

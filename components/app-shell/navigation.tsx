@@ -26,7 +26,7 @@ const navigationItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, ready: true },
   { href: "/finance", label: "Finance", icon: WalletCards, ready: true },
   { href: "/calendar", label: "Calendar", icon: CalendarDays, ready: true },
-  { href: "/school", label: "School", icon: GraduationCap },
+  { href: "/school", label: "School", icon: GraduationCap, ready: true },
   { href: "/tasks", label: "Tasks", icon: CheckSquare2 },
   { href: "/goals", label: "Goals", icon: Target },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
@@ -35,7 +35,7 @@ const navigationItems = [
 ] as const;
 
 const mobileItems = navigationItems.filter(({ href }) =>
-  ["/dashboard", "/finance", "/calendar", "/tasks", "/settings"].includes(href),
+  ["/dashboard", "/finance", "/calendar", "/school", "/settings"].includes(href),
 );
 
 function NavLink({ item, compact = false }: { item: (typeof navigationItems)[number]; compact?: boolean }) {
