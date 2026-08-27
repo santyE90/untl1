@@ -1,10 +1,10 @@
 # LifeStack: Project Architecture
 
-Status: Finance through Phase 2C, Calendar through Phase 3B, and School Phase 4A accepted; School Phase 4B implemented locally
+Status: Finance through Phase 2C, Calendar through Phase 3B, and School through Phase 4B accepted; Tasks Phase 5A implemented locally
 
 Last reviewed: 2026-08-27
 
-Current boundary: Complete School Phase 4B only. Do not begin Tasks, Goals, AI, syllabus parsing, LMS/external integrations, notification delivery, OCR, Python, or ML until a later milestone is approved.
+Current boundary: Complete Tasks Phase 5A only. Do not begin Goals, AI, recurring-task occurrence tracking, intelligent scheduling, task analytics, external integrations, notification delivery, Python, or ML until a later milestone is approved.
 
 This is the durable architectural source of truth for LifeStack. It records decisions that future implementation sessions must preserve.
 
@@ -145,7 +145,7 @@ Finance remains authoritative for `recurring_bills.next_due_date` and `recurring
 ```ts
 type CalendarItem = {
   id: string
-  sourceType: "native" | "bill" | "income" | "course_meeting" | "assessment"
+  sourceType: "native" | "bill" | "income" | "course_meeting" | "assessment" | "task"
   sourceId: string
   title: string
   start: string
@@ -194,9 +194,10 @@ Migration history:
 5. `20260827000300_calendar_core.sql` - Phase 3A private native events, integrity constraints, indexes, RLS, and grants; applied and accepted.
 6. `20260827000400_calendar_recurrence_reminders.sql` - Phase 3B source recurrence, reminder configuration, and default-view preference; applied and accepted.
 7. `20260827000500_school_core.sql` - Phase 4A academic hierarchy, grade inputs, weekly schedules, ownership constraints, RLS, and grants; applied and accepted.
-8. `20260827000600_school_planning.sql` - Phase 4B effort input, course resources, and parent-aware restoration integrity; pending owner application.
+8. `20260827000600_school_planning.sql` - Phase 4B effort input, course resources, and parent-aware restoration integrity; applied and accepted.
+9. `20260827000700_tasks_core.sql` - Phase 5A task lifecycle, due shapes, School ownership link, RLS, grants, and indexes; pending owner application.
 
-The CLI is linked. After review, apply pending migrations with `npm run db:push`, inspect the output before confirming, then run `npm run db:types:linked`. `types/database.ts` carries the last hosted generated schema plus the pending local School shape so the application can compile before the migration exists remotely; linked generation becomes authoritative immediately after push.
+The CLI is linked. After review, apply pending migrations with `npm run db:push`, inspect the output before confirming, then run `npm run db:types:linked`. `types/database.ts` carries the last hosted generated schema plus the pending local Tasks shape so the application can compile before the migration exists remotely; linked generation becomes authoritative immediately after push.
 
 Docker is optional for application development but required by the local Supabase stack and `npm run db:test`. Never assume a local reset has changed hosted infrastructure.
 
@@ -209,7 +210,8 @@ Docker is optional for application development but required by the local Supabas
 - Phase 3A: Native Calendar plus Finance projections - accepted.
 - Phase 3B: Native recurrence, richer views, reminders, and archive restoration - accepted.
 - Phase 4A: Academic core, exact grade tracking, and Calendar projection - accepted.
-- Phase 4B: Academic planning, workload, course resources, and restoration - implemented locally, awaiting hosted migration and browser acceptance.
+- Phase 4B: Academic planning, workload, course resources, and restoration - accepted.
+- Phase 5A: Core Tasks plus Calendar and School integration - implemented locally, awaiting hosted migration and browser acceptance.
 - Future Finance: mark-paid reconciliation workflow, recurrence advancement, discretionary estimation, import/reconciliation, and richer planning - blocked pending review.
 - Later: School import/enrichment, Tasks/Goals, notifications, controlled AI, integrations/data science.
 
@@ -376,9 +378,9 @@ The profile IANA timezone is authoritative; Toronto is only the profile default.
 
 ### 12.3 Shared projection service
 
-`features/calendar/queries.ts#getCalendarItems` is the RLS-bound orchestration service. It accepts an inclusive date range, executes bounded native and Finance queries with the user's ordinary Supabase session, maps each source to `CalendarItem`, filters to the visible range, and returns one chronological collection. The Calendar page and Dashboard both consume this service; page components do not reproduce source queries.
+`features/calendar/queries.ts#getCalendarItems` is the RLS-bound orchestration service. It accepts an inclusive date range, executes bounded native, Finance, School, and Tasks queries with the user's ordinary Supabase session, maps each source to `CalendarItem`, filters to the visible range, and returns one chronological collection. The Calendar page and Dashboard both consume this service; page components do not reproduce source queries.
 
-Phase 3A introduced `native`, `bill`, and `income`; Phase 4A added `course_meeting` and `assessment`. Native items are editable and link to Calendar detail routes. Finance and School items are read-only projections linking to their authoritative module. Future Tasks or Goals adapters can use the same DTO without changing source ownership.
+Phase 3A introduced `native`, `bill`, and `income`; Phase 4A added `course_meeting` and `assessment`; Phase 5A adds `task`. Native items are editable and link to Calendar detail routes. Finance, School, and Tasks items are read-only projections linking to their authoritative module. Future Goals adapters can use the same DTO without changing source ownership.
 
 ### 12.4 Finance projection and reconciliation
 
@@ -515,3 +517,43 @@ School and Planning use an explicit URL term selection, falling back to the term
 Calendar continues to project School-owned meetings and assessments without duplicate rows. Assessment type remains visible in text and gains type-specific icons so color is not the only distinction; weight stays in expandable detail rather than overcrowding grids. Identical course meeting rows are grouped for course-page display by type, time, location, effective range, and active state without changing the normalized weekday-row schema.
 
 Dashboard consumes `getSchoolPlanning` and shows this-week assessment count/weight and the next major assessment. It does not reimplement date filtering or grade formulas. Future Tasks may reference stable assessment IDs but no tasks are created. Future intelligent scheduling may combine user-entered effort with free Calendar blocks, but Phase 4B does not suggest study blocks. Future syllabus ingestion may store a document, parse into proposed School rows, and require user confirmation; no document table or storage bucket is created until that workflow has concrete retention and security requirements. School reminders may later project reminder configuration from School-owned sources without becoming native Calendar events; no duplicate reminder rows or delivery system exists now.
+
+## 16. Tasks Phase 5A: core tasks and Calendar integration
+
+### 16.1 Task ownership and lifecycle
+
+`tasks` is the authoritative user-owned task source. A row contains title, optional description, status, priority, one optional due shape, optional estimated effort in minutes, an optional School assessment link, completion/archive timestamps, and audit timestamps. Browser clients cannot hard-delete rows or change owner/audit fields. Archiving is separate from completion and removes a task from active views while preserving its history.
+
+The intentionally small status lifecycle is `todo`, `in_progress`, and `completed`. A pinned-search-path database trigger sets `completed_at` when a task enters `completed` and clears it when reopened. Reopening therefore returns a task to an active state without erasing the row. Priority is one of `low`, `medium`, `high`, or `urgent`; UI labels always communicate it in text rather than relying on color.
+
+Recurring task sources are deliberately deferred. A source-only recurrence rule without an occurrence exception/completion model would either hide all future occurrences when one occurrence is completed or lose completion history when the source advances. Phase 5B may add bounded recurrence projection only alongside explicit per-occurrence completion semantics; Phase 5A does not create fragile or infinite future rows.
+
+### 16.2 Due dates, effort, filtering, and ordering
+
+A task has either `due_date date`, `due_at timestamptz`, or neither, enforced by PostgreSQL. Date-only tasks remain timezone-free local calendar dates and are due for that complete date. Timed forms interpret the entered wall time using the user's stored IANA profile timezone and persist the resulting instant. Today/overdue classification converts only timed instants back through that timezone. A task is overdue when its local due date is before the user's current local date; no-date tasks are never assigned an invented date.
+
+Estimated effort is an optional positive integer minute count supplied by the user. LifeStack does not infer it. `features/tasks/task-service.ts` owns date classification, summary counts, filters, and deterministic ordering. Active ordering is overdue first, then today, upcoming, and undated; due value, priority (`urgent` through `low`), creation time, and ID provide stable tie-breakers. Server query entry points expose all, due-today, overdue, upcoming, completed, and summary data so Dashboard and future controlled consumers do not reimplement rules in React components.
+
+### 16.3 School assessment link
+
+`assessment_id` is nullable and uses `(assessment_id, user_id) -> assessments(id, user_id)`. This composite foreign key makes a cross-user assessment reference impossible even if application validation is bypassed. Server Actions also query the active assessment through the authenticated user's ordinary RLS-bound client before saving. School remains authoritative for the assessment, while the task title, due value, effort, status, and description remain independently editable.
+
+Assessment cards provide an explicit **Create task** link. It opens an unsaved Tasks form prefilled with the assessment name, stable relationship, and due value; nothing is generated until the user submits the form. Tasks and assessments remain separate workload concepts.
+
+### 16.4 Calendar and Dashboard projections
+
+`features/tasks/calendar-provider.ts` performs bounded RLS-filtered reads and maps active dated tasks into the shared `CalendarItem` contract with source type `task`. A date-only due value is an all-day item and a timed due value remains an instant. Priority, status, and optional course/assessment context travel as source metadata. Calendar treats the item as read-only and links to Tasks for editing; no native `calendar_events` row or duplicate task occurrence is created.
+
+Only non-archived, non-completed tasks with a due value appear. Completed tasks are intentionally omitted even from historical Calendar queries in Phase 5A, because Calendar represents outstanding obligations rather than completion history. Archived and no-date tasks are also excluded. The shared aggregation remains the sole Calendar/Dashboard boundary:
+
+```text
+Native + Finance + School + Tasks -> CalendarItem[]
+```
+
+Dashboard uses the same task summary service for due-today, overdue, and active counts, and uses the shared Calendar aggregation for dated task items in Today/Upcoming. It does not embed task-specific database queries.
+
+### 16.5 Security and future boundaries
+
+RLS restricts every task operation to `auth.uid() = user_id`; anonymous grants are absent. Least-privilege column grants prevent ownership reassignment, direct completion-timestamp mutation, audit-field mutation, and hard deletion. The assessment composite key provides database-level ownership integrity in addition to RLS. Calendar projection uses the ordinary authenticated client and therefore cannot bypass task RLS.
+
+A future Goals milestone can add a nullable `(goal_id, user_id)` composite foreign key without changing task identity or lifecycle; Phase 5A creates no Goals tables. Future intelligent scheduling may consume due shape, priority, estimated effort, Calendar availability, and assessment context, but does not create work blocks now. Future AI tools must call validated task services such as `getTasks`, `getTasksDueToday`, `getOverdueTasks`, `getUpcomingTasks`, `getTaskSummary`, and the authenticated mutations rather than query arbitrary tables. Phase 5A makes no OpenAI requests and adds no scheduling, analytics, reminders, notifications, Python, ML, or external integrations.

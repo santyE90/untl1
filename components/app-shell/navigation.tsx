@@ -27,7 +27,7 @@ const navigationItems = [
   { href: "/finance", label: "Finance", icon: WalletCards, ready: true },
   { href: "/calendar", label: "Calendar", icon: CalendarDays, ready: true },
   { href: "/school", label: "School", icon: GraduationCap, ready: true },
-  { href: "/tasks", label: "Tasks", icon: CheckSquare2 },
+  { href: "/tasks", label: "Tasks", icon: CheckSquare2, ready: true },
   { href: "/goals", label: "Goals", icon: Target },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/assistant", label: "AI Assistant", icon: Bot },
@@ -35,7 +35,7 @@ const navigationItems = [
 ] as const;
 
 const mobileItems = navigationItems.filter(({ href }) =>
-  ["/dashboard", "/finance", "/calendar", "/school", "/settings"].includes(href),
+  ["/dashboard", "/finance", "/calendar", "/school", "/tasks", "/settings"].includes(href),
 );
 
 function NavLink({ item, compact = false }: { item: (typeof navigationItems)[number]; compact?: boolean }) {
@@ -48,7 +48,7 @@ function NavLink({ item, compact = false }: { item: (typeof navigationItems)[num
       aria-current={isActive ? "page" : undefined}
       className={cn(
         compact
-          ? "flex min-w-14 flex-col items-center gap-1 rounded-lg px-2 py-1.5 text-[0.6875rem] font-medium"
+          ? "flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[0.625rem] font-medium"
           : "flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium",
         isActive
           ? "bg-sidebar-accent text-sidebar-accent-foreground"
@@ -121,7 +121,7 @@ export function MobileHeader({ displayName }: { displayName: string | null }) {
 
 export function MobileBottomNav() {
   return (
-    <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t bg-card/95 px-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur md:hidden">
+    <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t bg-card/95 px-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur md:hidden">
       {mobileItems.map((item) => <NavLink compact item={item} key={item.href} />)}
     </nav>
   );

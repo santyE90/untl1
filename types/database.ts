@@ -1018,6 +1018,72 @@ export type Database = {
           },
         ]
       }
+      tasks: {
+        Row: {
+          archived_at: string | null
+          assessment_id: string | null
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_at: string | null
+          due_date: string | null
+          estimated_effort_minutes: number | null
+          id: string
+          priority: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          assessment_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_at?: string | null
+          due_date?: string | null
+          estimated_effort_minutes?: number | null
+          id?: string
+          priority?: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          assessment_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_at?: string | null
+          due_date?: string | null
+          estimated_effort_minutes?: number | null
+          id?: string
+          priority?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_assessment_id_user_id_fkey"
+            columns: ["assessment_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "tasks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       finance_account_balances: {

@@ -9,18 +9,20 @@ import { addCalendarDays } from "@/features/finance/date-ranges";
 import { formatPercent } from "@/features/school/grades";
 import { assessmentLocalDate, daysUntilLabel } from "@/features/school/planning";
 import { getSchoolPlanning } from "@/features/school/queries";
+import { getTaskSummary } from "@/features/tasks/queries";
+import { taskDueLocalDate } from "@/features/tasks/task-service";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
 const moduleCards = [
   { icon: CircleDollarSign, title: "Finance", description: "Accounts, transactions, recurring schedules, budgets, analytics, and planning.", status: "Available" },
-  { icon: CalendarDays, title: "Calendar", description: "Native events and projected Finance dates in one source-aware timeline.", status: "Available" },
+  { icon: CalendarDays, title: "Calendar", description: "Native events and projected Finance, School, and Tasks dates in one source-aware timeline.", status: "Available" },
   { icon: GraduationCap, title: "School", description: "Courses, weekly schedules, assessments, and exact grade tracking.", status: "Available" },
-  { icon: ListChecks, title: "Tasks", description: "Your current priorities will appear here once task management is available." },
+  { icon: ListChecks, title: "Tasks", description: "Priorities, due dates, effort, School links, and completion history.", status: "Available" },
 ];
 
 export default async function DashboardPage() {
-  const [context, school] = await Promise.all([getCalendarContext(), getSchoolPlanning()]);
+  const [context, school, taskData] = await Promise.all([getCalendarContext(), getSchoolPlanning(), getTaskSummary()]);
   const user = context.user;
   const upcoming = await getCalendarItems({ start: context.today, end: addCalendarDays(context.today, 30) });
   const todayItems = upcoming.filter((item) => item.allDay ? item.start.slice(0, 10) <= context.today && (item.end ?? item.start).slice(0, 10) >= context.today : dateForInstant(item.start, context.timeZone) === context.today);
@@ -48,10 +50,17 @@ export default async function DashboardPage() {
           <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-primary"><Sparkles className="size-5" /></span>
           <div>
             <h2 className="font-semibold" id="today-heading">Today</h2>
-            <p className="text-sm text-muted-foreground">Native events plus Finance and School projections for the next 30 days.</p>
+            <p className="text-sm text-muted-foreground">Native events plus Finance, School, and Tasks projections for the next 30 days.</p>
           </div>
         </div>
-        {upcoming.length ? <div className="mt-6 grid gap-6 lg:grid-cols-2"><div><h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted-foreground">Today · {todayItems.length} {todayItems.length === 1 ? "item" : "items"}</h3><div className="space-y-2">{todayItems.length ? todayItems.slice(0, 4).map((item) => <CalendarItemCard item={item} key={item.id} timeZone={context.timeZone} />) : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">Nothing scheduled today.</p>}</div></div><div><h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted-foreground">Upcoming</h3><div className="space-y-2">{upcoming.filter((item) => !todayItems.some((todayItem) => todayItem.id === item.id)).slice(0, 4).map((item) => <CalendarItemCard item={item} key={item.id} timeZone={context.timeZone} />)}</div></div></div> : <div className="mt-6 rounded-xl border border-dashed bg-muted/45 px-5 py-8 text-center"><p className="font-medium">Nothing scheduled yet</p><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground">Create a Calendar event or add a recurring bill or payday in Finance. No activity is fabricated.</p></div>}
+        {upcoming.length ? <div className="mt-6 grid gap-6 lg:grid-cols-2"><div><h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted-foreground">Today · {todayItems.length} {todayItems.length === 1 ? "item" : "items"}</h3><div className="space-y-2">{todayItems.length ? todayItems.slice(0, 4).map((item) => <CalendarItemCard item={item} key={item.id} timeZone={context.timeZone} />) : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">Nothing scheduled today.</p>}</div></div><div><h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted-foreground">Upcoming</h3><div className="space-y-2">{upcoming.filter((item) => !todayItems.some((todayItem) => todayItem.id === item.id)).slice(0, 4).map((item) => <CalendarItemCard item={item} key={item.id} timeZone={context.timeZone} />)}</div></div></div> : <div className="mt-6 rounded-xl border border-dashed bg-muted/45 px-5 py-8 text-center"><p className="font-medium">Nothing scheduled yet</p><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground">Create a Calendar event, add a dated task, or add a recurring bill or payday in Finance. No activity is fabricated.</p></div>}
+      </section>
+
+      <section aria-labelledby="tasks-heading" className="rounded-2xl border bg-card p-5 shadow-sm sm:p-7">
+        <div className="flex items-center gap-3"><span className="flex size-10 items-center justify-center rounded-xl bg-secondary text-primary"><ListChecks className="size-5" /></span><div><h2 className="font-semibold" id="tasks-heading">Tasks</h2><p className="text-sm text-muted-foreground">Immediate obligations from the shared Tasks service.</p></div></div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-3"><div><p className="text-xs text-muted-foreground">Due today</p><b className="text-2xl">{taskData.summary.dueToday}</b></div><div><p className="text-xs text-muted-foreground">Overdue</p><b className={taskData.summary.overdue ? "text-2xl text-destructive" : "text-2xl"}>{taskData.summary.overdue}</b></div><div><p className="text-xs text-muted-foreground">Active</p><b className="text-2xl">{taskData.summary.active}</b></div></div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{[...taskData.overdue, ...taskData.dueToday, ...taskData.upcoming].slice(0, 3).map((task) => <Link className="rounded-xl border p-4 transition-colors hover:bg-muted/45" href={`/tasks?task=${task.id}#task-${task.id}`} key={task.id}><p className="text-xs font-bold uppercase text-primary">{task.priority} priority</p><p className="mt-1 font-medium">{task.title}</p><p className="mt-2 text-xs text-muted-foreground">{taskDueLocalDate(task, taskData.timezone) ?? "No due date"}{task.assessment ? ` · ${task.assessment.courseCode}` : ""}</p></Link>)}</div>
+        <Link className="mt-4 inline-block text-sm font-semibold text-primary" href="/tasks">Open Tasks →</Link>
       </section>
 
       <section aria-labelledby="school-heading" className="rounded-2xl border bg-card p-5 shadow-sm sm:p-7">
