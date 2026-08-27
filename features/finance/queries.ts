@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import type { AuthenticatedAppContext } from "@/features/shared/server-context";
 
 export type FinanceAccount = {
   id: string;
@@ -13,8 +14,13 @@ export type FinanceAccount = {
   archivedAt: string | null;
 };
 
-export async function getFinanceOverview() {
-  const supabase = await createClient();
+function financeAccount(row: { id: string | null; name: string | null; account_type: string | null; currency: string | null; current_balance: number | null; opening_balance_date: string | null; include_in_net_worth: boolean | null; archived_at: string | null }): FinanceAccount | null {
+  if (!row.id || !row.name || !row.currency || !row.account_type || !row.opening_balance_date) return null;
+  return { id: row.id, name: row.name, accountType: row.account_type, currency: row.currency, currentBalance: String(row.current_balance ?? 0), openingBalanceDate: row.opening_balance_date, includeInNetWorth: row.include_in_net_worth ?? true, archivedAt: row.archived_at };
+}
+
+export async function getFinanceOverview(context?: AuthenticatedAppContext) {
+  const supabase = context?.supabase ?? await createClient();
   const [balancesResult, categoriesResult, transactionsResult, billsResult, incomeResult] = await Promise.all([
     supabase.from("finance_account_balances").select("*").order("archived_at", { ascending: true }).order("name"),
     supabase.from("finance_categories").select("*").is("archived_at", null).order("name"),
@@ -26,19 +32,7 @@ export async function getFinanceOverview() {
   const error = balancesResult.error ?? categoriesResult.error ?? transactionsResult.error ?? billsResult.error ?? incomeResult.error;
   if (error) throw new Error(`Unable to load finance data: ${error.message}`);
 
-  const accounts: FinanceAccount[] = (balancesResult.data ?? []).flatMap((row) => {
-    if (!row.id || !row.name || !row.currency || !row.account_type || !row.opening_balance_date) return [];
-    return [{
-      id: row.id,
-      name: row.name,
-      accountType: row.account_type,
-      currency: row.currency,
-      currentBalance: String(row.current_balance ?? 0),
-      openingBalanceDate: row.opening_balance_date,
-      includeInNetWorth: row.include_in_net_worth ?? true,
-      archivedAt: row.archived_at,
-    }];
-  });
+  const accounts: FinanceAccount[] = (balancesResult.data ?? []).flatMap((row) => financeAccount(row) ?? []);
 
   const accountNames = new Map(accounts.map((account) => [account.id, account.name]));
   const categoryNames = new Map((categoriesResult.data ?? []).map((category) => [category.id, category.name]));
@@ -66,9 +60,11 @@ export async function getTransactionForEdit(id: string) {
   return { ...data, amount: amount.startsWith("-") ? amount.slice(1) : amount };
 }
 
-export async function getAccountBalances() {
-  const { accounts } = await getFinanceOverview();
-  return accounts;
+export async function getAccountBalances(context?: AuthenticatedAppContext) {
+  const supabase = context?.supabase ?? await createClient();
+  const { data, error } = await supabase.from("finance_account_balances").select("id,name,account_type,currency,current_balance,opening_balance_date,include_in_net_worth,archived_at").order("archived_at", { ascending: true }).order("name");
+  if (error) throw new Error(`Unable to load account balances: ${error.message}`);
+  return (data ?? []).flatMap((row) => financeAccount(row) ?? []);
 }
 
 export async function getUpcomingBills() {

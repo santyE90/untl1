@@ -2,9 +2,7 @@ import "server-only";
 
 import { notFound } from "next/navigation";
 
-import { requireAuthenticatedUser } from "@/lib/auth/user";
-import { createClient } from "@/lib/supabase/server";
-import { currentDateInTimeZone } from "../finance/date-ranges";
+import { getAuthenticatedAppContext, type AuthenticatedAppContext } from "../shared/server-context";
 import { calculateCourseGrade, calculateCourseTarget, type GradeAssessment } from "./grades";
 import { calculateTermProgress, filterUpcomingAssessments, getMajorAssessments, planningRanges, summarizeWorkload } from "./planning";
 
@@ -16,16 +14,15 @@ export function assessmentDate(assessment: { due_at: string | null; starts_at: s
   return assessment.event_date ?? assessment.due_at ?? assessment.starts_at ?? "9999";
 }
 
-export async function getSchoolOverview() {
-  const user = await requireAuthenticatedUser();
-  const supabase = await createClient();
-  const [profileResult, termResult, courseResult, assessmentResult] = await Promise.all([
-    supabase.from("profiles").select("timezone").eq("id", user.id).single(),
+export async function getSchoolOverview(suppliedContext?: AuthenticatedAppContext) {
+  const context = suppliedContext ?? await getAuthenticatedAppContext();
+  const supabase = context.supabase;
+  const [termResult, courseResult, assessmentResult] = await Promise.all([
     supabase.from("academic_terms").select("*").is("archived_at", null).order("start_date", { ascending: false }),
     supabase.from("courses").select("*").is("archived_at", null).order("code"),
     supabase.from("assessments").select("*").is("archived_at", null),
   ]);
-  const error = profileResult.error ?? termResult.error ?? courseResult.error ?? assessmentResult.error;
+  const error = termResult.error ?? courseResult.error ?? assessmentResult.error;
   if (error) throw new Error(error.message);
 
   const terms = termResult.data ?? [];
@@ -33,9 +30,9 @@ export async function getSchoolOverview() {
   const activeCourses = (courseResult.data ?? []).filter((course) => termIds.has(course.term_id));
   const courseIds = new Set(activeCourses.map((course) => course.id));
   const assessments = (assessmentResult.data ?? []).filter((assessment) => courseIds.has(assessment.course_id));
-  const timezone = profileResult.data?.timezone ?? "America/Toronto";
+  const timezone = context.timeZone;
   return {
-    today: currentDateInTimeZone(timezone), timezone, terms,
+    today: context.today, timezone, terms,
     courses: activeCourses.map((course) => {
       const rows = assessments.filter((assessment) => assessment.course_id === course.id).map(gradeRow);
       return { ...course, grade: calculateCourseGrade(rows), target: calculateCourseTarget(rows, course.target_grade === null ? null : String(course.target_grade)) };
@@ -44,16 +41,16 @@ export async function getSchoolOverview() {
   };
 }
 
-export async function getUpcomingAssessments({ start, end, termId }: { start: string; end: string; termId?: string }) {
-  const overview = await getSchoolOverview();
+export async function getUpcomingAssessments({ start, end, termId, context }: { start: string; end: string; termId?: string; context?: AuthenticatedAppContext }) {
+  const overview = await getSchoolOverview(context);
   const courseIds = new Set(overview.courses.filter((course) => !termId || course.term_id === termId).map((course) => course.id));
   const assessments = filterUpcomingAssessments(overview.assessments.filter((assessment) => courseIds.has(assessment.course_id)), { start, end }, overview.timezone);
   const courses = new Map(overview.courses.map((course) => [course.id, course]));
   return { ...overview, assessments: assessments.map((assessment) => ({ ...assessment, course: courses.get(assessment.course_id)! })) };
 }
 
-export async function getSchoolPlanning(termId?: string) {
-  const overview = await getSchoolOverview();
+export async function getSchoolPlanning(termId?: string, context?: AuthenticatedAppContext) {
+  const overview = await getSchoolOverview(context);
   const term = overview.terms.find((candidate) => candidate.id === termId) ?? overview.terms.find((candidate) => candidate.start_date <= overview.today && candidate.end_date >= overview.today) ?? overview.terms[0] ?? null;
   const courses = term ? overview.courses.filter((course) => course.term_id === term.id) : [];
   const courseIds = new Set(courses.map((course) => course.id));
@@ -72,10 +69,11 @@ export async function getSchoolPlanning(termId?: string) {
 }
 
 export async function getCourseDetail(id: string) {
-  const base = await getSchoolOverview();
+  const context = await getAuthenticatedAppContext();
+  const base = await getSchoolOverview(context);
   const course = base.courses.find((candidate) => candidate.id === id);
   if (!course) notFound();
-  const supabase = await createClient();
+  const supabase = context.supabase;
   const [meetingResult, resourceResult] = await Promise.all([
     supabase.from("course_meetings").select("*").eq("course_id", id).order("weekday"),
     supabase.from("course_resources").select("*").eq("course_id", id).is("archived_at", null).order("sort_order").order("created_at"),
@@ -86,8 +84,7 @@ export async function getCourseDetail(id: string) {
 }
 
 export async function getSchoolArchives() {
-  await requireAuthenticatedUser();
-  const supabase = await createClient();
+  const { supabase } = await getAuthenticatedAppContext();
   const [termResult, courseResult, assessmentResult] = await Promise.all([
     supabase.from("academic_terms").select("*").order("start_date", { ascending: false }),
     supabase.from("courses").select("*").order("code"),

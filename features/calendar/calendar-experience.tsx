@@ -1,7 +1,7 @@
 import { ArchiveRestore, ChevronLeft, ChevronRight, Plus, Settings2 } from "lucide-react";
 import Link from "next/link";
 
-import { addCalendarDays } from "../finance/date-ranges";
+import { addCalendarDays } from "../shared/date-ranges";
 import { cn } from "@/lib/utils";
 
 import { CalendarItemCard } from "./calendar-item-card";

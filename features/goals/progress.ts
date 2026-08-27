@@ -1,26 +1,18 @@
 import type { GoalRecord, GoalWithRelations } from "./types";
+import { divideRounded, parseScaledDecimal, scaledDecimalToFixed } from "../shared/exact-decimal";
 
 const SCALE = 10_000n;
 const HUNDRED = 100n * SCALE;
-const DECIMAL = /^(\d{1,16})(?:\.(\d{1,4}))?$/;
 
 export type GoalExact = bigint;
 
 export function parseGoalExact(value: string): GoalExact {
-  const match = DECIMAL.exec(value.trim());
-  if (!match) throw new Error("Enter a non-negative number with up to four decimal places.");
-  return BigInt(match[1]) * SCALE + BigInt((match[2] ?? "").padEnd(4, "0"));
+  try { return parseScaledDecimal(value, { scale: 4, maxWholeDigits: 16 }); }
+  catch { throw new Error("Enter a non-negative number with up to four decimal places."); }
 }
 
 export function goalExactToDecimal(value: GoalExact) {
-  const whole = value / SCALE;
-  const fraction = (value % SCALE).toString().padStart(4, "0").replace(/0+$/, "");
-  return fraction ? `${whole}.${fraction}` : String(whole);
-}
-
-function divideRounded(numerator: bigint, denominator: bigint) {
-  if (denominator <= 0n) throw new Error("Goal target must be greater than zero.");
-  return (numerator + denominator / 2n) / denominator;
+  return scaledDecimalToFixed(value, 4).replace(/\.?(?:0+)$/, "");
 }
 
 export function goalProgress(goal: Pick<GoalRecord, "progress_mode" | "current_value_decimal" | "target_value_decimal" | "unit_label">) {

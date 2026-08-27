@@ -1,4 +1,4 @@
-import { addCalendarDays } from "../finance/date-ranges";
+import { addCalendarDays } from "../shared/date-ranges";
 import { expandAnchoredDates } from "../shared/recurrence";
 import { dateForInstant, instantToLocalInput, recurringLocalDateTimeToUtc } from "./dates";
 import { nativeEventToCalendarItem } from "./projection";

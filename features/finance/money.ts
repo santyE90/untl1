@@ -1,28 +1,16 @@
+import { divideRounded, parseScaledDecimal, scaledDecimalToFixed } from "../shared/exact-decimal";
+
 const SCALE = 4;
-const SCALE_FACTOR = BigInt(10) ** BigInt(SCALE);
-const MONEY_PATTERN = /^(-?)(\d{1,15})(?:\.(\d{1,4}))?$/;
 
 export type Money = bigint;
 
 export function parseMoney(value: string | number): Money {
-  const normalized = String(value).trim();
-  const match = MONEY_PATTERN.exec(normalized);
-
-  if (!match) {
-    throw new Error("Enter a valid amount with no more than four decimal places.");
-  }
-
-  const [, sign, whole, fraction = ""] = match;
-  const scaled = BigInt(whole) * SCALE_FACTOR + BigInt(fraction.padEnd(SCALE, "0"));
-  return sign === "-" ? -scaled : scaled;
+  try { return parseScaledDecimal(value, { scale: SCALE, maxWholeDigits: 15, allowNegative: true }); }
+  catch { throw new Error("Enter a valid amount with no more than four decimal places."); }
 }
 
 export function moneyToDecimal(value: Money): string {
-  const sign = value < BigInt(0) ? "-" : "";
-  const absolute = value < BigInt(0) ? -value : value;
-  const whole = absolute / SCALE_FACTOR;
-  const fraction = (absolute % SCALE_FACTOR).toString().padStart(SCALE, "0");
-  return `${sign}${whole}.${fraction}`;
+  return scaledDecimalToFixed(value, SCALE);
 }
 
 export function addMoney(values: Array<string | number | Money>): Money {
@@ -38,10 +26,7 @@ export function multiplyMoney(value: string | number | Money, multiplier: bigint
 
 export function divideMoneyRounded(value: Money, divisor: bigint): Money {
   if (divisor <= BigInt(0)) throw new Error("Divisor must be positive.");
-  const negative = value < BigInt(0);
-  const absolute = negative ? -value : value;
-  const quotient = (absolute + divisor / BigInt(2)) / divisor;
-  return negative ? -quotient : quotient;
+  return divideRounded(value, divisor);
 }
 
 export function formatMoney(value: string | number | Money, currency = "CAD"): string {

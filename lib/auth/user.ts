@@ -10,8 +10,10 @@ export type AuthenticatedUser = {
   displayName: string | null;
 };
 
-export async function getAuthenticatedUser(): Promise<AuthenticatedUser | null> {
-  const supabase = await createClient();
+type ServerSupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+export async function getAuthenticatedUser(client?: ServerSupabaseClient): Promise<AuthenticatedUser | null> {
+  const supabase = client ?? await createClient();
   const { data, error } = await supabase.auth.getClaims();
   const claims = data?.claims;
 
@@ -37,8 +39,8 @@ export async function getAuthenticatedUser(): Promise<AuthenticatedUser | null> 
   };
 }
 
-export async function requireAuthenticatedUser() {
-  const user = await getAuthenticatedUser();
+export async function requireAuthenticatedUser(client?: ServerSupabaseClient) {
+  const user = await getAuthenticatedUser(client);
 
   if (!user) {
     redirect("/login");

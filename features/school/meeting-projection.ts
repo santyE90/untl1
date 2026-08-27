@@ -1,4 +1,4 @@
-import { addCalendarDays } from "../finance/date-ranges";
+import { addCalendarDays } from "../shared/date-ranges";
 import { recurringLocalDateTimeToUtc } from "../calendar/dates";
 import type { CalendarItem } from "../calendar/types";
 

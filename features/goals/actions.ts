@@ -54,8 +54,9 @@ export async function setGoalStatus(formData: FormData) {
   const status = goalStatusSchema.safeParse(text(formData, "status"));
   if (!goalEntityIdSchema.safeParse(id).success || !status.success) goalsFail("Goal lifecycle request is invalid.");
   const { user, supabase } = await context();
-  const { error } = await supabase.from("goals").update({ status: status.data }).eq("id", id).eq("user_id", user.id);
+  const { data, error } = await supabase.from("goals").update({ status: status.data }).eq("id", id).eq("user_id", user.id).select("id").maybeSingle();
   if (error) goalFail(id, error.message);
+  if (!data) goalFail(id, "Goal is unavailable.");
   refreshGoals();
   redirect(`/goals/${id}?success=${encodeURIComponent(status.data === "completed" ? "Goal completed." : "Goal reopened.")}`);
 }
@@ -64,8 +65,9 @@ export async function archiveGoal(formData: FormData) {
   const id = text(formData, "id");
   if (!goalEntityIdSchema.safeParse(id).success) goalsFail("Goal identifier is invalid.");
   const { user, supabase } = await context();
-  const { error } = await supabase.from("goals").update({ archived_at: new Date().toISOString() }).eq("id", id).eq("user_id", user.id);
+  const { data, error } = await supabase.from("goals").update({ archived_at: new Date().toISOString() }).eq("id", id).eq("user_id", user.id).select("id").maybeSingle();
   if (error) goalFail(id, error.message);
+  if (!data) goalFail(id, "Goal is unavailable.");
   refreshGoals();
   redirect(`/goals?filter=archived&success=${encodeURIComponent("Goal archived.")}`);
 }
@@ -84,8 +86,8 @@ export async function saveMilestone(formData: FormData) {
   if (goalError || !goal) goalFail(goalId, "Goal is unavailable.");
   const row = { title: parsed.data.title, description: parsed.data.description, target_date: targetDate, sort_order: parsed.data.sortOrder };
   const result = id
-    ? await supabase.from("goal_milestones").update(row).eq("id", id).eq("goal_id", goalId).eq("user_id", user.id)
-    : await supabase.from("goal_milestones").insert({ user_id: user.id, goal_id: goalId, ...row });
+    ? await supabase.from("goal_milestones").update(row).eq("id", id).eq("goal_id", goalId).eq("user_id", user.id).select("id").single()
+    : await supabase.from("goal_milestones").insert({ user_id: user.id, goal_id: goalId, ...row }).select("id").single();
   if (result.error) goalFail(goalId, result.error.message);
   refreshGoals();
   redirect(`/goals/${goalId}?success=${encodeURIComponent(id ? "Milestone updated." : "Milestone added.")}`);
@@ -97,8 +99,9 @@ export async function setMilestoneCompletion(formData: FormData) {
   if (!goalEntityIdSchema.safeParse(id).success || !goalEntityIdSchema.safeParse(goalId).success) goalsFail("Milestone request is invalid.");
   const { user, supabase } = await context();
   const completed = text(formData, "completed") === "true";
-  const { error } = await supabase.from("goal_milestones").update({ is_completed: completed }).eq("id", id).eq("goal_id", goalId).eq("user_id", user.id);
+  const { data, error } = await supabase.from("goal_milestones").update({ is_completed: completed }).eq("id", id).eq("goal_id", goalId).eq("user_id", user.id).select("id").maybeSingle();
   if (error) goalFail(goalId, error.message);
+  if (!data) goalFail(goalId, "Milestone is unavailable.");
   refreshGoals();
   redirect(`/goals/${goalId}?success=${encodeURIComponent(completed ? "Milestone completed." : "Milestone reopened.")}`);
 }
@@ -108,8 +111,9 @@ export async function archiveMilestone(formData: FormData) {
   const goalId = text(formData, "goalId");
   if (!goalEntityIdSchema.safeParse(id).success || !goalEntityIdSchema.safeParse(goalId).success) goalsFail("Milestone request is invalid.");
   const { user, supabase } = await context();
-  const { error } = await supabase.from("goal_milestones").update({ archived_at: new Date().toISOString() }).eq("id", id).eq("goal_id", goalId).eq("user_id", user.id);
+  const { data, error } = await supabase.from("goal_milestones").update({ archived_at: new Date().toISOString() }).eq("id", id).eq("goal_id", goalId).eq("user_id", user.id).select("id").maybeSingle();
   if (error) goalFail(goalId, error.message);
+  if (!data) goalFail(goalId, "Milestone is unavailable.");
   refreshGoals();
   redirect(`/goals/${goalId}?success=${encodeURIComponent("Milestone archived.")}`);
 }

@@ -1,24 +1,23 @@
 import "server-only";
 
-import { requireAuthenticatedUser } from "@/lib/auth/user";
-import { createClient } from "@/lib/supabase/server";
-import { currentDateInTimeZone } from "../finance/date-ranges";
 import { getSchoolOverview } from "../school/queries";
+import { getAuthenticatedAppContext, type AuthenticatedAppContext } from "../shared/server-context";
 import { filterTasks, summarizeTasks } from "./task-service";
 import type { TaskWithContext } from "./types";
 
-export async function getTasks() {
-  const user = await requireAuthenticatedUser();
-  const supabase = await createClient();
-  const [profileResult, taskResult, goalResult, school] = await Promise.all([
-    supabase.from("profiles").select("timezone").eq("id", user.id).single(),
+type SchoolOverview = Awaited<ReturnType<typeof getSchoolOverview>>;
+
+export async function getTasks(options: { context?: AuthenticatedAppContext; school?: SchoolOverview } = {}) {
+  const context = options.context ?? await getAuthenticatedAppContext();
+  const supabase = context.supabase;
+  const [taskResult, goalResult, school] = await Promise.all([
     supabase.from("tasks").select("*").is("archived_at", null),
     supabase.from("goals").select("id,title,status").is("archived_at", null).order("title"),
-    getSchoolOverview(),
+    options.school ?? getSchoolOverview(context),
   ]);
-  const error = profileResult.error ?? taskResult.error ?? goalResult.error;
+  const error = taskResult.error ?? goalResult.error;
   if (error) throw new Error(`Unable to load Tasks: ${error.message}`);
-  const timezone = profileResult.data?.timezone ?? "America/Toronto";
+  const timezone = context.timeZone;
   const courses = new Map(school.courses.map((course) => [course.id, course]));
   const assessments = new Map(school.assessments.map((assessment) => [assessment.id, assessment]));
   const goals = new Map((goalResult.data ?? []).map((goal) => [goal.id, goal]));
@@ -28,11 +27,11 @@ export async function getTasks() {
     const goal = task.goal_id ? goals.get(task.goal_id) : null;
     return { ...task, assessment: assessment && course ? { id: assessment.id, name: assessment.name, courseId: course.id, courseCode: course.code } : null, goal: goal ? { id: goal.id, title: goal.title } : null };
   });
-  return { tasks, timezone, today: currentDateInTimeZone(timezone), goalOptions: goalResult.data ?? [], assessmentOptions: school.assessments.map((assessment) => ({ id: assessment.id, name: assessment.name, timingType: assessment.timing_type, dueAt: assessment.due_at, startsAt: assessment.starts_at, eventDate: assessment.event_date, course: courses.get(assessment.course_id) })).filter((option) => option.course) };
+  return { tasks, timezone, today: context.today, goalOptions: goalResult.data ?? [], assessmentOptions: school.assessments.map((assessment) => ({ id: assessment.id, name: assessment.name, timingType: assessment.timing_type, dueAt: assessment.due_at, startsAt: assessment.starts_at, eventDate: assessment.event_date, course: courses.get(assessment.course_id) })).filter((option) => option.course) };
 }
 
-export async function getTaskSummary() {
-  const data = await getTasks();
+export async function getTaskSummary(options: { context?: AuthenticatedAppContext; school?: SchoolOverview } = {}) {
+  const data = await getTasks(options);
   return { ...data, summary: summarizeTasks(data.tasks, data.today, data.timezone), dueToday: filterTasks(data.tasks, "today", data.today, data.timezone), overdue: filterTasks(data.tasks, "overdue", data.today, data.timezone), upcoming: filterTasks(data.tasks, "upcoming", data.today, data.timezone) };
 }
 

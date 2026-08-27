@@ -2,9 +2,7 @@ import "server-only";
 
 import { notFound } from "next/navigation";
 
-import { currentDateInTimeZone } from "@/features/finance/date-ranges";
-import { requireAuthenticatedUser } from "@/lib/auth/user";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthenticatedAppContext, type AuthenticatedAppContext } from "@/features/shared/server-context";
 
 import { sortGoals, summarizeGoals } from "./progress";
 import type { GoalMilestoneRecord, GoalRecord, GoalTaskRecord, GoalWithRelations } from "./types";
@@ -19,16 +17,13 @@ function goalWithRelations(row: GoalRecord, milestones: GoalMilestoneRecord[], t
   } as GoalWithRelations;
 }
 
-async function goalsContext() {
-  const user = await requireAuthenticatedUser();
-  const supabase = await createClient();
-  const { data: profile, error } = await supabase.from("profiles").select("timezone").eq("id", user.id).single();
-  if (error) throw new Error(`Unable to load Goal preferences: ${error.message}`);
-  return { user, supabase, timezone: profile.timezone, today: currentDateInTimeZone(profile.timezone) };
+async function goalsContext(supplied?: AuthenticatedAppContext) {
+  const context = supplied ?? await getAuthenticatedAppContext();
+  return { ...context, timezone: context.timeZone };
 }
 
-export async function getGoals() {
-  const context = await goalsContext();
+export async function getGoals(suppliedContext?: AuthenticatedAppContext) {
+  const context = await goalsContext(suppliedContext);
   const [goalResult, milestoneResult, taskResult] = await Promise.all([
     context.supabase.from("goals").select(goalSelect),
     context.supabase.from("goal_milestones").select("id,goal_id,title,description,target_date,sort_order,is_completed,completed_at,archived_at,created_at,updated_at"),
@@ -65,8 +60,8 @@ export async function getUpcomingGoalDeadlines() {
   return data.goals.filter((goal) => !goal.archived_at && goal.status === "active" && goal.deadline && goal.deadline >= data.today);
 }
 
-export async function getGoalSummary() {
-  const data = await getGoals();
+export async function getGoalSummary(context?: AuthenticatedAppContext) {
+  const data = await getGoals(context);
   return { ...data, summary: summarizeGoals(data.goals, data.today) };
 }
 

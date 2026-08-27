@@ -1,18 +1,14 @@
 import "server-only";
 
-import { requireAuthenticatedUser } from "@/lib/auth/user";
-import { createClient } from "@/lib/supabase/server";
-import { addCalendarDays } from "../finance/date-ranges";
+import type { CalendarProviderContext, CalendarSourceProvider } from "../calendar/provider";
+import { addCalendarDays, type DateRange } from "../shared/date-ranges";
 import { zonedLocalDateTimeToUtc } from "../calendar/dates";
 import { taskToCalendarItem } from "./projection";
 import type { TaskWithContext } from "./types";
 
-export async function getTaskCalendarItems(range: { start: string; end: string }) {
-  const user = await requireAuthenticatedUser();
-  const supabase = await createClient();
-  const { data: profile, error: profileError } = await supabase.from("profiles").select("timezone").eq("id", user.id).single();
-  if (profileError) throw new Error(`Unable to load Task Calendar timezone: ${profileError.message}`);
-  const timezone = profile.timezone;
+export async function getTaskCalendarItems(range: DateRange, context: CalendarProviderContext) {
+  const supabase = context.supabase;
+  const timezone = context.timeZone;
   const startInstant = zonedLocalDateTimeToUtc(`${range.start}T00:00`, timezone);
   const endInstant = zonedLocalDateTimeToUtc(`${addCalendarDays(range.end, 1)}T00:00`, timezone);
   const [dateResult, timedResult] = await Promise.all([
@@ -43,3 +39,5 @@ export async function getTaskCalendarItems(range: { start: string; end: string }
     return item ? [item] : [];
   });
 }
+
+export const taskCalendarProvider: CalendarSourceProvider = { id: "tasks", getItems: getTaskCalendarItems };

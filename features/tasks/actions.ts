@@ -50,14 +50,16 @@ export async function setTaskStatus(formData: FormData) {
   const parsed = taskStatusSchema.safeParse(text(formData, "status"));
   if (!parsed.success) fail("Task status is invalid.");
   const { user, supabase } = await context();
-  const { error } = await supabase.from("tasks").update({ status: parsed.data }).eq("id", text(formData, "id")).eq("user_id", user.id);
+  const { data, error } = await supabase.from("tasks").update({ status: parsed.data }).eq("id", text(formData, "id")).eq("user_id", user.id).select("id").maybeSingle();
   if (error) fail(error.message);
+  if (!data) fail("Task is unavailable.");
   done(parsed.data === "completed" ? "Task completed." : parsed.data === "todo" ? "Task reopened." : "Task started.");
 }
 
 export async function archiveTask(formData: FormData) {
   const { user, supabase } = await context();
-  const { error } = await supabase.from("tasks").update({ archived_at: new Date().toISOString() }).eq("id", text(formData, "id")).eq("user_id", user.id);
+  const { data, error } = await supabase.from("tasks").update({ archived_at: new Date().toISOString() }).eq("id", text(formData, "id")).eq("user_id", user.id).select("id").maybeSingle();
   if (error) fail(error.message);
+  if (!data) fail("Task is unavailable.");
   done("Task archived.");
 }

@@ -1,10 +1,10 @@
 # LifeStack: Project Architecture
 
-Status: Finance through Phase 2C, Calendar through Phase 3B, School through Phase 4B, and Tasks Phase 5A accepted; Goals Phase 5B implemented locally
+Status: Finance through Phase 2C, Calendar through Phase 3B, School through Phase 4B, Tasks Phase 5A, Goals Phase 5B, Phase 6, and Assistant Phase 7A accepted; Assistant Phase 7B implemented locally
 
 Last reviewed: 2026-08-27
 
-Current boundary: Complete Goals Phase 5B only. Do not begin AI, advanced analytics, habit tracking, recurring Tasks, intelligent scheduling, external integrations, notification delivery, Python, or ML until a later milestone is approved.
+Current boundary: Complete the read-only Assistant Phase 7B reliability and UX milestone only. Do not add Assistant mutations, persistence/memory, advanced analytics, habit tracking, recurring Tasks, intelligent scheduling, external integrations, notification delivery, Python, or ML until a later milestone is approved.
 
 This is the durable architectural source of truth for LifeStack. It records decisions that future implementation sessions must preserve.
 
@@ -19,7 +19,7 @@ Core rules:
 - Use Next.js Server Components for reads/composition and small Server Actions for first-party mutations.
 - Authenticate every server entry point and enforce ownership again with PostgreSQL grants, RLS, and foreign keys.
 - Derive `user_id` from the verified session. Never trust ownership sent by a browser.
-- Keep service-role and OpenAI secrets out of browser bundles. No OpenAI calls exist yet.
+- Keep service-role and OpenAI secrets out of browser bundles. Phase 7A permits OpenAI calls only inside the authenticated server-only Assistant boundary.
 - Keep business queries in feature modules so UI, future Analytics, and controlled AI tools share the same rules.
 - Maintain useful phone and desktop layouts from the beginning.
 
@@ -169,7 +169,7 @@ Finance analytics query posted income/expense by date range and category, the ac
 
 ### AI
 
-No OpenAI request is permitted yet. A later controlled tool layer may call reviewed application services (`getAccountBalances`, `getUpcomingBills`, `getMonthlySpending`, `getNextPayday`, later `getBudgetRemaining`). It must not expose arbitrary database access or a service-role key to a model.
+Finance Phase 2A introduced no OpenAI request. Phase 7A now exposes selected reviewed Finance reads through the controlled Assistant tool layer; it does not expose arbitrary database access, raw transactions for model arithmetic, or a service-role key.
 
 ## 7. Design system
 
@@ -196,9 +196,9 @@ Migration history:
 7. `20260827000500_school_core.sql` - Phase 4A academic hierarchy, grade inputs, weekly schedules, ownership constraints, RLS, and grants; applied and accepted.
 8. `20260827000600_school_planning.sql` - Phase 4B effort input, course resources, and parent-aware restoration integrity; applied and accepted.
 9. `20260827000700_tasks_core.sql` - Phase 5A task lifecycle, due shapes, School ownership link, RLS, grants, and indexes; applied and accepted.
-10. `20260827000800_goals_core.sql` - Phase 5B Goals, exact manual progress, milestones, Task ownership link, RLS, grants, and indexes; pending owner application.
+10. `20260827000800_goals_core.sql` - Phase 5B Goals, exact manual progress, milestones, Task ownership link, RLS, grants, and indexes; applied and accepted.
 
-The CLI is linked. After review, apply pending migrations with `npm run db:push`, inspect the output before confirming, then run `npm run db:types:linked`. `types/database.ts` carries the last hosted generated schema plus the pending local Goals shape so the application can compile before the migration exists remotely; linked generation becomes authoritative immediately after push.
+The CLI is linked and hosted migration history is current through Goals Phase 5B. Phase 6 requires no schema change and therefore adds no migration. Continue using `npm run db:push -- --dry-run` before future pushes and regenerate authoritative linked types after any hosted schema change with `npm run db:types:linked`.
 
 Docker is optional for application development but required by the local Supabase stack and `npm run db:test`. Never assume a local reset has changed hosted infrastructure.
 
@@ -213,7 +213,10 @@ Docker is optional for application development but required by the local Supabas
 - Phase 4A: Academic core, exact grade tracking, and Calendar projection - accepted.
 - Phase 4B: Academic planning, workload, course resources, and restoration - accepted.
 - Phase 5A: Core Tasks plus Calendar and School integration - accepted.
-- Phase 5B: Goals, milestones, Task links, and Calendar integration - implemented locally, awaiting hosted migration and browser acceptance.
+- Phase 5B: Goals, milestones, Task links, and Calendar integration - accepted.
+- Phase 6: cross-module service consolidation and Assistant readiness - accepted.
+- Phase 7A: authenticated read-only Assistant with bounded LifeStack tools - accepted.
+- Phase 7B: streaming reliability, trusted references, safeguards, and evaluation coverage - implemented locally, awaiting browser acceptance.
 - Future Finance: mark-paid reconciliation workflow, recurrence advancement, discretionary estimation, import/reconciliation, and richer planning - blocked pending review.
 - Later: School import/enrichment, recurring Tasks, notifications, controlled AI, integrations/data science.
 
@@ -611,3 +614,115 @@ Dashboard consumes `getGoalSummary` for active count, overdue deadlines, next de
 Goals and milestones use authenticated-only RLS and least-privilege column grants. Ownership, generated exact-value projections, completion timestamps, and audit fields cannot be supplied or reassigned by browser updates. Composite foreign keys protect Goal-to-milestone and Goal-to-Task ownership. Calendar projection uses the ordinary authenticated client, so it cannot bypass RLS.
 
 Future Finance-derived savings progress or School-derived academic progress requires an explicit source model and reconciliation rules; Phase 5B performs no automatic cross-domain calculation. Future planning may reason over Goal, milestone, Task, deadline, effort, and Calendar availability, but creates no suggestions or work blocks. Future AI must call validated Goals services (`getGoals`, `getGoal`, `getActiveGoals`, `getUpcomingGoalDeadlines`, `getGoalSummary`, and authenticated mutations), never arbitrary tables. Habit tracking, recurring Goals/Tasks, analytics, notification delivery, OpenAI calls, Python/ML, and external integrations remain outside this phase.
+
+## 18. Phase 6: cross-module consolidation and Assistant readiness
+
+### 18.1 Domain ownership and service boundaries
+
+LifeStack remains a modular Next.js monolith. Finance owns ledger and schedule data; School owns terms, courses, meetings, assessments, grades, and resources; Tasks owns task lifecycle; Goals owns outcomes and milestones; Calendar owns only native events. Calendar projects all five sources and Dashboard composes their summaries. No generic cross-domain table or duplicated authoritative row exists.
+
+Feature folders distinguish authenticated queries, deterministic calculators, mutations/Server Actions, projections/providers, validation, and presentation. Pages call these boundaries rather than reproducing date, count, grade, money, or progress rules. Existing Task-to-Assessment and Task-to-Goal composite relationships are the only implemented cross-domain foreign keys. Finance-to-Goal, School-to-Goal, Goal-to-Course, and Task-to-scheduled-block relationships remain documented possibilities, not speculative schema fields.
+
+`features/shared/server-context.ts` is the consistent private server boundary. It creates an ordinary RLS-bound Supabase client, verifies the session, loads profile preferences once, and supplies the authenticated identity, timezone, currency, week start, default Calendar view, and local date. Browser inputs never provide authoritative ownership. RLS, restricted grants, and composite ownership constraints remain the final enforcement layer. This context is request-scoped; no private data is placed in a global or cross-user cache.
+
+The lightweight `ServiceResult<T>` convention in `features/shared/service-result.ts` provides serializable success values and the stable error codes `validation`, `not_found`, `unauthorized`, `conflict`, and `unexpected` for future non-form adapters. Existing form Server Actions continue to own redirects and field-oriented UI errors. They must eventually delegate reusable mutations to authenticated domain services before an Assistant can call those writes; Phase 6 does not perform a risky broad rewrite of proven form flows.
+
+### 18.2 Shared dates, recurrence, and exact numerics
+
+`features/shared/date-ranges.ts` owns genuinely shared date-only operations: inclusive ranges, calendar-day addition, month boundaries, local today, and days remaining. PostgreSQL `date` values remain `YYYY-MM-DD` strings and are never converted through UTC midnight. Precise instants remain `timestamptz` and are interpreted through the profile's IANA timezone. Domain utilities retain rules that are not interchangeable, including Task overdue buckets, School assessment timing, Finance schedule anchors, and native Calendar DST conversion.
+
+Recurrence is intentionally domain-specific. Finance expands anchored bill/payday schedules, native Calendar expands an event series in its recurrence timezone, and School expands weekday meeting patterns over effective dates. All expansion is bounded by a requested inclusive range and retains defensive occurrence limits where applicable. Recurring Tasks remain deferred until per-occurrence completion and exception semantics are designed.
+
+`features/shared/exact-decimal.ts` consolidates only low-level scaled-decimal parsing, fixed-string conversion, and signed rounded division. Finance continues to expose four-decimal `Money` and ledger rules; School retains grade weights, earned-points, scenarios, and its own limits; Goals retains exact manual progress, units, and over-target behavior. Formatting remains separate from authoritative values. A future Assistant consumes these deterministic results instead of recreating arithmetic with a language model.
+
+### 18.3 Calendar provider architecture
+
+`features/calendar/provider.ts` defines an explicit provider contract and `features/calendar/queries.ts` owns the ordered registry:
+
+```text
+bounded Calendar range + authenticated context
+  -> Native | Finance | School | Tasks | Goals providers
+  -> normalized CalendarItem[]
+  -> bounded filter + deterministic sort
+  -> Month / Week / Day / Agenda, Dashboard, and future tool adapters
+```
+
+Each provider owns its RLS-bound query and mapping. Calendar pages know no Finance, School, Task, or Goal table details. Providers reuse one authenticated context and may run concurrently. Stable IDs are source-qualified and occurrence-aware (`native`, bill/income source plus date, meeting plus date, assessment, task, and goal); array indexes are never identities.
+
+`CalendarItem` is a discriminated union with a common temporal/navigation contract and typed source-specific metadata. All items expose a stable ID, source type and source ID, title, all-day versus timed shape, authoritative link, editability, recurrence/reminders where applicable, and display metadata. Native events are editable in Calendar; projected sources are read-only and navigate to their owner. Provider queries and recurrence expansion are range-bounded, so neither history nor the future is fetched without limit.
+
+### 18.4 Today, Upcoming, and Dashboard
+
+`features/overview/queries.ts` is the cross-module aggregation boundary. `getTodayOverview` uses the user's local date; `getUpcomingOverview` delegates to the same Calendar aggregation for an explicit bounded range; and `getDashboardOverview` reuses one authenticated context plus shared School data for Task context. `features/overview/summary.ts` produces structured Calendar items and per-source counts without JSX.
+
+Dashboard now consumes this single overview service. Its Today and near-term Upcoming areas include native events and obligations projected from Finance, School, Tasks, and Goals. Concise Task, Goal, and School summaries link to their authoritative modules. The former repetitive module-preview grid was removed so Dashboard remains an overview rather than five mini-applications. It does not use a monolithic cross-domain SQL query and does not duplicate domain arithmetic.
+
+### 18.5 Assistant boundary and security model
+
+The proposed V1 surface is specified in [assistant-tool-design.md](assistant-tool-design.md). Read tools may execute only for an authenticated user who intentionally requests the information. Low-risk, reversible writes require clear conversational intent and revalidate every entity ID. Archives, ambiguous/batch writes, and sensitive financial mutations require explicit confirmation; transfers additionally require a final source, destination, currency, amount, and date summary. Tool inputs never accept `user_id`, and ordinary authenticated services—not a service-role client—supply ownership and enforce RLS.
+
+Stored task descriptions, Goal descriptions, course notes, Calendar descriptions, resource labels, and future imported content are untrusted data, never system instructions. Future imported syllabi, web pages, LMS/email content, and documents receive the same treatment. Tool output must preserve the boundary between trusted application instructions and quoted user/external content.
+
+Future OpenAI calls will live only in a server-only Assistant module and a narrowly scoped Route Handler or server action. `OPENAI_API_KEY` is never exposed to Client Components, never prefixed `NEXT_PUBLIC_`, and never passed to a model or tool output. Tool handlers call authenticated LifeStack services rather than arbitrary SQL. A single server configuration boundary will own model, reasoning setting, output limits, and enabled tools.
+
+Assistant context is assembled through targeted tools, bounded ranges, stable entity fetches, and compact summaries—not a dump of the user's database. Finance, School, recurrence, Task overdue, and Goal progress calculations remain deterministic domain code. This limits data exposure and cost while keeping answers reproducible. Conversation tables remain deliberately deferred until retention, deletion/export, tool-call metadata, memory semantics, and ownership requirements are approved.
+
+## 19. Assistant Phase 7A: authenticated read-only MVP
+
+### 19.1 Request and OpenAI boundary
+
+`/assistant` renders a small Client Component whose conversation exists only in React state. It sends at most the latest 12 user/assistant messages to `POST /api/assistant`; refreshing clears the conversation. The non-cached Route Handler rejects cross-site requests, parses a strict bounded payload, obtains an optional authenticated application context, and returns `401` before model execution when no verified session exists.
+
+All OpenAI code lives under `features/assistant/server/` and is imported only by the Node.js Route Handler. `OPENAI_API_KEY` is read at request time by server-only configuration, is never logged, and has no `NEXT_PUBLIC_` equivalent. Missing configuration produces a setup-oriented `503` without exposing a value or stack trace. Provider, usage-limit, malformed-output, and tool-limit failures are mapped to small safe browser responses.
+
+The implementation uses the installed OpenAI SDK's Responses interface with `store: false`. Phase 7A deliberately returns one completed JSON answer rather than streaming: non-streaming keeps multi-tool replay, error handling, and the defensive iteration boundary straightforward and testable for this limited MVP. The UI still presents a generating state.
+
+### 19.2 Model and bounded tool loop
+
+`features/assistant/server/config.ts` is the single configuration boundary. Phase 7A selects `gpt-5-mini`, low reasoning effort, a 900-token combined output ceiling, four tool-result iterations, and eight total tool calls. The model may request parallel read tools, but the server executes only the fixed registered catalog. After each tool result, the model receives structured JSON and may produce a final answer or request another permitted read. A repeated loop terminates safely.
+
+Implemented tools are `get_today_overview`, `get_upcoming_calendar`, `get_finance_summary`, `get_upcoming_bills`, `get_cash_flow_projection`, `get_courses`, `get_upcoming_assessments`, `get_course_standing`, `get_tasks`, `get_tasks_due_today`, `get_overdue_tasks`, `get_goals`, `get_goal_progress`, and `get_upcoming_goal_deadlines`. General upcoming ranges accept 1–90 local calendar days. Cash-flow projection accepts only 7, 30, 60, 90 days, or current month-end. List outputs are concise and capped where needed. Exact money/grade/Goal values remain decimal strings and currencies remain separate.
+
+### 19.3 Authentication, ownership, and read-only guarantees
+
+The handler reuses `AuthenticatedAppContext`: verified session identity, ordinary cookie-bound Supabase client, profile, IANA timezone, and local date. No request or tool schema accepts `user_id`. All Calendar, Finance, School, Task, and Goal adapters call existing context-aware services, so ordinary RLS and composite ownership constraints remain authoritative. Course and Goal IDs are searched only within the authenticated user's RLS-filtered service results; a hidden or missing ID returns the same safe `not_found` result.
+
+There is no service-role client, arbitrary SQL tool, built-in web/file/computer tool, Server Action invocation, or mutation definition. The Assistant cannot create, update, complete, archive, transfer, budget, or delete anything. Requests for changes receive a capability explanation from the concise developer instruction.
+
+### 19.4 Untrusted content and deterministic results
+
+The developer instruction explicitly classifies every title, description, note, label, merchant, and future imported value returned by tools as untrusted data. Prompt-like text remains inside `function_call_output` JSON and cannot modify the developer instruction, enabled tools, or ownership boundary. Phase 7A minimizes exposure further by omitting long descriptions and unrelated database/audit fields from tool results.
+
+Today and Calendar facts come from the shared overview/provider services; Finance balances and forecasts come from exact deterministic services; School standing comes from exact grade calculators; Task due classification uses the profile timezone; and Goal progress uses the exact Goals calculator. The model explains these results and never receives raw transaction history to recompute them.
+
+No Assistant migration exists. `assistant_threads`, `assistant_messages`, memory, embeddings, RAG, uploads, and retention policy remain deferred. The implemented tool details and safety cases are maintained in [assistant-tool-design.md](assistant-tool-design.md).
+
+## 20. Assistant Phase 7B: streaming reliability and UX
+
+### 20.1 Stream protocol and cancellation
+
+The authenticated Route Handler now returns newline-delimited, schema-validated events: request metadata, status, text deltas, completion with references, or a safe error. Each OpenAI Responses turn is streamed. Text is forwarded as it arrives; a completed response may contain bounded function calls, which execute through the existing authenticated read adapters before the next model turn streams. Internal function arguments and results are never rendered in the browser. Browser cancellation propagates through an `AbortSignal`, releases the request slot, and does not leave a generating message marked complete.
+
+The client parses arbitrary network chunk boundaries and requires an explicit completion event. It retains partial text after an interruption, offers Stop, Retry, and New chat controls, prevents duplicate submits while a request is active, and only auto-scrolls while the user remains near the bottom. Assistant text is rendered as escaped plain text; raw HTML and model-authored links are not rendered.
+
+### 20.2 Trusted LifeStack references
+
+Read adapters may return a separate `AssistantReference` containing a constrained type, server-derived record identifier, short label, and approved same-origin path. The model-facing tool result omits the reference `href`; the UI receives only references that pass a strict allowlist for Calendar, Finance, School course/assessment, Task, and Goal routes. References are deduplicated and capped at eight. Arbitrary, external, protocol-relative, malformed, and `javascript:` targets are rejected. Calendar projections use their trusted provider-owned `sourceUrl`; projected entities remain editable only in their authoritative domain.
+
+### 20.3 Throttling, limits, and cost controls
+
+One central limits module owns the 8,000-character user-message ceiling, 12-message/32,000-character recent context, 900-token output ceiling, four tool iterations, eight total calls, 48 KB serialized result ceiling, eight UI references, and per-domain list caps. Capped results include `totalAvailable` and `truncated`, and the instruction requires the model not to describe them as exhaustive. Tool date ranges and enum inputs remain bounded.
+
+The V1 server throttle permits one concurrent request per authenticated user, enforces 1.5 seconds between starts, and allows at most six starts per minute. The browser also blocks repeated submit gestures. This in-memory throttle is deliberately lightweight: it is process-local, resets on restart/deployment, is not coordinated across serverless instances, and is not an abuse-control guarantee. A shared store or platform rate limiter is required before higher-risk or broadly deployed write tooling.
+
+### 20.4 Privacy-safe operations and retention
+
+Each turn has a random request ID returned in response headers/stream metadata and shown in abbreviated form with recoverable errors. One completion summary logs the model, duration, outcome class, unique read-tool names/count, request ID, and a stable 12-character SHA-256-derived user correlation. LifeStack does not log raw user IDs, messages, tool arguments/results, financial or academic content, authentication tokens, API keys, or provider error payloads by default.
+
+Conversation retention remains intentionally ephemeral. State exists only in the current browser component, `store: false` remains set for OpenAI, refresh/New chat clears it, and no conversation tables exist. Recent context is bounded by both count and characters; when older messages are excluded the UI says so. Persistence remains deferred until retention duration, deletion/export, tool-call metadata, memory behavior, and RLS ownership are explicitly designed.
+
+### 20.5 Reliability evaluation and immutable boundary
+
+Deterministic tests cover streamed completion and tool continuation, provider failure before/mid-stream, cancellation, malformed/incomplete streams, cleanup, throttling, trusted-route rejection, payload caps, missing/inaccessible entities, privacy-safe observation, malicious stored content, no `userId` inputs, and the absence of mutation tools. A representative evaluation catalog records selective expected tools for Today, School deadlines and standing, overdue Tasks, Finance bills, and cross-domain Calendar/cash-flow questions, plus missing-course and rejected write requests.
+
+Phase 7B remains fully read-only. It adds no migration, service-role access, arbitrary database access, mutation definition, confirmation flow, persistent chat, or new data domain. A future Phase 7C should begin with a very small mutation surface built on extracted authenticated domain mutation services and explicit preview/confirmation; none is implemented here.

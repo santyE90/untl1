@@ -2,9 +2,9 @@ import { moneyToDecimal, type Money } from "../finance/money";
 import type { CashFlowEntry } from "../finance/cash-flow-planning";
 
 import { dateForInstant } from "./dates";
-import type { CalendarItem, NativeCalendarEvent } from "./types";
+import type { CalendarItem, CalendarItemFor, NativeCalendarEvent } from "./types";
 
-export function nativeEventToCalendarItem(event: NativeCalendarEvent): CalendarItem {
+export function nativeEventToCalendarItem(event: NativeCalendarEvent): CalendarItemFor<"native"> {
   return {
     id: `native:${event.id}`,
     sourceType: "native",
@@ -53,6 +53,12 @@ export function financeEntryToCalendarItem(entry: CashFlowEntry, accountName: st
 
 export function calendarDateForItem(item: CalendarItem, timeZone: string) {
   return item.allDay ? item.start.slice(0, 10) : dateForInstant(item.start, timeZone);
+}
+
+export function calendarItemOccursOnDate(item: CalendarItem, date: string, timeZone: string) {
+  const start = calendarDateForItem(item, timeZone);
+  const end = item.allDay ? (item.end ?? item.start).slice(0, 10) : dateForInstant(item.end ?? item.start, timeZone);
+  return start <= date && end >= date;
 }
 
 export function combineCalendarItems(items: CalendarItem[], range: { start: string; end: string }, timeZone: string) {

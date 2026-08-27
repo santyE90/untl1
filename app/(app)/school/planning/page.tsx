@@ -7,19 +7,21 @@ import { getSchoolCalendarItems } from "@/features/school/calendar-provider";
 import { formatPercent } from "@/features/school/grades";
 import { assessmentLocalDate, daysUntilLabel, summarizeWorkload } from "@/features/school/planning";
 import { getSchoolPlanning } from "@/features/school/queries";
+import { getAuthenticatedAppContext } from "@/features/shared/server-context";
 
 export const metadata: Metadata = { title: "School Planning" };
 const panel = "rounded-2xl border bg-card p-5 shadow-sm";
 
 export default async function SchoolPlanningPage({ searchParams }: { searchParams: Promise<{ term?: string; range?: string }> }) {
   const query = await searchParams;
-  const data = await getSchoolPlanning(query.term);
+  const context = await getAuthenticatedAppContext();
+  const data = await getSchoolPlanning(query.term, context);
   const rangeKey = ["7", "14", "30", "term"].includes(query.range ?? "") ? query.range! : "14";
   const selectedRange = rangeKey === "7" ? data.ranges.seven : rangeKey === "30" ? data.ranges.thirty : rangeKey === "term" ? data.ranges.term : data.ranges.fourteen;
   const upcoming = data.upcoming.filter((assessment) => assessmentLocalDate(assessment, data.timezone) <= selectedRange.end);
   const summary = summarizeWorkload(upcoming);
   const courseMap = new Map(data.courses.map((course) => [course.id, course]));
-  const schoolWeek = data.term ? (await getSchoolCalendarItems(data.ranges.seven)).filter((item) => data.courses.some((course) => item.sourceUrl.includes(course.id))) : [];
+  const schoolWeek = data.term ? (await getSchoolCalendarItems(data.ranges.seven, context)).filter((item) => data.courses.some((course) => item.sourceUrl.includes(course.id))) : [];
 
   return <div className="space-y-7">
     <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><Link className="inline-flex items-center gap-2 text-sm font-semibold text-primary" href="/school"><ArrowLeft className="size-4" />School</Link><h1 className="mt-3 text-3xl font-bold">Academic planning</h1><p className="mt-1 text-sm text-muted-foreground">Transparent workload and deadline concentration from your School records.</p></div><Link className="rounded-lg border bg-card px-4 py-2 text-sm font-semibold" href="/school/archive">School archive</Link></header>

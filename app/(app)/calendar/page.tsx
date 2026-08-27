@@ -14,7 +14,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const requestedView = params.view as CalendarViewName | undefined;
   const view: CalendarViewName = requestedView && ["month", "week", "day", "agenda"].includes(requestedView) ? requestedView : context.defaultView;
   const range = rangeForCalendarView(view, selectedDate, context.weekStartsOn);
-  const items = await getCalendarItems(range);
+  const items = await getCalendarItems(range, context);
 
   return <>
     {params.error ? <p className="mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive" role="alert">{params.error}</p> : null}

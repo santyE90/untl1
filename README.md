@@ -1,6 +1,6 @@
 # LifeStack
 
-LifeStack is a responsive personal-management application built with Next.js 16 and Supabase. It includes authentication, Finance, a source-aware Calendar, deterministic academic planning, Tasks, and measurable Goals with lightweight milestones.
+LifeStack is a responsive personal-management application built with Next.js 16 and Supabase. It includes authentication, Finance, a source-aware Calendar, deterministic academic planning, Tasks, measurable Goals, and an authenticated read-only AI Assistant.
 
 [docs/project-architecture.md](docs/project-architecture.md) is the detailed source of truth for schema decisions, ledger semantics, security boundaries, and roadmap.
 
@@ -11,7 +11,7 @@ LifeStack is a responsive personal-management application built with Next.js 16 
 - Supabase Auth and PostgreSQL with RLS
 - Zod, Vitest, Supabase migrations, and pgTAP tests
 
-No OpenAI requests are made. The AI SDK/key remain reserved for a later approved milestone.
+Assistant Phase 7B streams server-side OpenAI responses through bounded read-only LifeStack tools and renders trusted internal record references separately from model text. It cannot modify data and does not persist conversations; see [docs/assistant-tool-design.md](docs/assistant-tool-design.md).
 
 ## Local setup
 
@@ -40,7 +40,7 @@ Open <http://localhost:3000>.
 
 ## Hosted Supabase migrations
 
-Hosted migrations are never applied automatically. Migrations through Tasks Phase 5A are accepted on hosted Supabase; Goals Phase 5B adds one pending migration:
+Hosted migrations are never applied automatically. Migrations through Goals Phase 5B are accepted on hosted Supabase:
 
 ```text
 supabase/migrations/20260826000100_create_profiles.sql
@@ -55,23 +55,13 @@ supabase/migrations/20260827000700_tasks_core.sql
 supabase/migrations/20260827000800_goals_core.sql
 ```
 
-For the pending Goals migration, inspect it and run:
+Assistant Phase 7B has no schema changes and no pending migration. Before a future schema push, inspect the linked dry-run:
 
 ```bash
-npm run db:push
-npm run db:types:linked
+npm run db:push -- --dry-run
 ```
 
-Confirm the push prompt lists only `20260827000800_goals_core.sql`. The second command replaces the provisional `types/database.ts` additions with hosted generated types after the schema exists. No additional Supabase dashboard settings are required.
-
-If SQL Editor is preferred, run the entire pending migration there, then repair/confirm CLI migration history before a future `db:push`; do not let the CLI reapply the same SQL.
-
-The Phase 5B Goals migration:
-
-- adds private Goals with explicit lifecycle, date-only deadlines, and exact manual progress;
-- adds lightweight owned milestones with completion and archive history;
-- links Tasks optionally to owned Goals without changing Task lifecycle;
-- applies composite ownership, RLS, least-privilege grants, and no hard-delete access.
+After any future migration is applied, run `npm run db:types:linked`. No Supabase Dashboard changes are required for Phase 7B.
 
 ## Quality commands
 
@@ -105,6 +95,8 @@ features/calendar/   Calendar projection, timezone, CRUD, validation, queries, a
 features/school/     School actions, exact grade calculations, projections, validation, queries, and UI
 features/tasks/      Task actions, lifecycle/date services, projections, validation, queries, and UI
 features/goals/      Goal progress, milestones, actions, queries, validation, projections, and UI
+features/overview/   authenticated Today, Upcoming, and Dashboard composition
+features/shared/     shared request context, date ranges, exact-decimal primitives, result contracts
 lib/                 authentication and Supabase infrastructure
 supabase/migrations/ ordered schema history
 supabase/tests/      pgTAP security/isolation suites
@@ -124,7 +116,7 @@ docs/                durable architecture and project decisions
 
 ## Scope
 
-Implemented through Goals Phase 5B:
+Implemented through Assistant Phase 7B:
 
 - signup, email confirmation, login/logout, protected sessions, and profiles;
 - responsive desktop/mobile application shell;
@@ -158,5 +150,16 @@ Implemented through Goals Phase 5B:
 - exact manual percentage or numeric-target progress with unclamped over-target values;
 - lightweight milestones and optional owned Task-to-Goal links;
 - source-aware Goal Calendar projections and concise Dashboard Goal summaries.
+- explicit Native, Finance, School, Tasks, and Goals Calendar source providers;
+- one request-scoped authenticated context and profile-timezone boundary;
+- shared local-date ranges, low-level exact-decimal primitives, and lightweight service results;
+- reusable cross-module Today/Upcoming and concise Dashboard aggregation;
+- authenticated read-only Assistant chat backed by a server-only OpenAI request boundary;
+- 14 bounded tools spanning Today, Calendar, Finance, School, Tasks, and Goals;
+- defensive tool iteration/call limits, strict inputs, concise structured results, and untrusted-data instructions;
+- session-local conversation state with no Assistant database tables or memory.
+- streamed answer/tool-continuation events with stop, retry, New chat, and restrained auto-scroll UX;
+- trusted same-origin LifeStack reference chips, centralized cost limits, payload truncation metadata, lightweight per-user throttling, and privacy-safe execution summaries;
+- deterministic Assistant stream/security tests and a selective read-tool evaluation catalog.
 
-Deferred until later approval: recurring-task occurrence completion, Finance/School-derived Goal progress, intelligent scheduling, Goal/Task analytics, habit tracking, notifications, external integrations, AI, and Python/ML.
+Deferred until later approval: Assistant mutations and confirmation UI, persistent chat history/memory, recurring-task occurrence completion, Finance/School-derived Goal progress, intelligent scheduling, Goal/Task analytics, habit tracking, notifications, external integrations, and Python/ML.

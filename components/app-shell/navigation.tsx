@@ -30,7 +30,7 @@ const navigationItems = [
   { href: "/tasks", label: "Tasks", icon: CheckSquare2, ready: true },
   { href: "/goals", label: "Goals", icon: Target, ready: true },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/assistant", label: "AI Assistant", icon: Bot },
+  { href: "/assistant", label: "AI Assistant", icon: Bot, ready: true },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 

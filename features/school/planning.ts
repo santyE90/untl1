@@ -1,5 +1,5 @@
 import { dateForInstant } from "../calendar/dates";
-import { addCalendarDays } from "../finance/date-ranges";
+import { addCalendarDays } from "../shared/date-ranges";
 import { parseExact } from "./grades";
 
 export type PlanningAssessment = {

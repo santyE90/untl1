@@ -2,15 +2,16 @@ import "server-only";
 
 import { requireAuthenticatedUser } from "@/lib/auth/user";
 import { createClient } from "@/lib/supabase/server";
+import type { AuthenticatedAppContext } from "@/features/shared/server-context";
 
 import { calculateBudgetStatus, calculatePeriodAnalytics, getRecurringCostBreakdown, groupNetWorth, percentageChange, type AnalyticsAccount, type AnalyticsCategory, type AnalyticsTransaction } from "./analytics";
 import { currentDateInTimeZone, currentMonthKey, daysRemainingInPeriod, monthRange, previousMonthKey } from "./date-ranges";
 
-export async function getFinanceAnalytics(requestedMonth?: string) {
-  const user = await requireAuthenticatedUser();
-  const supabase = await createClient();
-  const { data: profile, error: profileError } = await supabase.from("profiles").select("currency,timezone").eq("id", user.id).single();
-  if (profileError) throw new Error(`Unable to load finance preferences: ${profileError.message}`);
+export async function getFinanceAnalytics(requestedMonth?: string, context?: AuthenticatedAppContext) {
+  const user = context?.user ?? await requireAuthenticatedUser();
+  const supabase = context?.supabase ?? await createClient();
+  const profile = context?.profile ?? (await supabase.from("profiles").select("currency,timezone").eq("id", user.id).single()).data;
+  if (!profile) throw new Error("Unable to load finance preferences.");
 
   const month = requestedMonth ?? currentMonthKey(profile.timezone);
   const currentRange = monthRange(month);

@@ -1,4 +1,4 @@
-import { addCalendarDays, type DateRange } from "../finance/date-ranges";
+import { addCalendarDays, type DateRange } from "../shared/date-ranges";
 
 const DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const LOCAL_DATE_TIME = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;

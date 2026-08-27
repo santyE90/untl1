@@ -2,18 +2,19 @@ import "server-only";
 
 import { requireAuthenticatedUser } from "@/lib/auth/user";
 import { createClient } from "@/lib/supabase/server";
+import type { AuthenticatedAppContext } from "@/features/shared/server-context";
 
 import { buildKnownCashFlowForecast, type PlanningAccount } from "./cash-flow-planning";
 import { currentDateInTimeZone } from "./date-ranges";
 import { resolveForecastRange } from "./forecast-range";
 import type { RecurringProjectionSource } from "./recurrence-expansion";
 
-export async function getCashFlowForecast(horizon?: string, through?: string) {
-  const user = await requireAuthenticatedUser();
-  const supabase = await createClient();
-  const { data: profile, error: profileError } = await supabase.from("profiles").select("timezone").eq("id", user.id).single();
-  if (profileError) throw new Error(`Unable to load planning preferences: ${profileError.message}`);
-  const today = currentDateInTimeZone(profile.timezone);
+export async function getCashFlowForecast(horizon?: string, through?: string, context?: AuthenticatedAppContext) {
+  const user = context?.user ?? await requireAuthenticatedUser();
+  const supabase = context?.supabase ?? await createClient();
+  const profile = context?.profile ?? (await supabase.from("profiles").select("timezone").eq("id", user.id).single()).data;
+  if (!profile) throw new Error("Unable to load planning preferences.");
+  const today = context?.today ?? currentDateInTimeZone(profile.timezone);
   const selection = resolveForecastRange(today, horizon, through);
 
   const [accountsResult, billsResult, incomeResult, recordedResult] = await Promise.all([

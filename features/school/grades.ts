@@ -1,18 +1,16 @@
+import { divideRounded, parseScaledDecimal, scaledDecimalToFixed } from "../shared/exact-decimal";
+
 const SCALE = 10_000n;
 const HUNDRED = 100n * SCALE;
-const DECIMAL = /^(\d{1,8})(?:\.(\d{1,4}))?$/;
 export type Exact = bigint;
 
 export function parseExact(value: string | number): Exact {
-  const match = DECIMAL.exec(String(value).trim());
-  if (!match) throw new Error("Enter a non-negative number with up to four decimal places.");
-  return BigInt(match[1]) * SCALE + BigInt((match[2] ?? "").padEnd(4, "0"));
+  try { return parseScaledDecimal(value, { scale: 4, maxWholeDigits: 8 }); }
+  catch { throw new Error("Enter a non-negative number with up to four decimal places."); }
 }
 
 export function exactToString(value: Exact) {
-  const sign = value < 0n ? "-" : "";
-  const absolute = value < 0n ? -value : value;
-  return `${sign}${absolute / SCALE}.${(absolute % SCALE).toString().padStart(4, "0")}`;
+  return scaledDecimalToFixed(value, 4);
 }
 
 export function formatPercent(value: Exact | null, decimals = 1) {
@@ -25,14 +23,6 @@ export function formatPercent(value: Exact | null, decimals = 1) {
   if (!places) return `${sign}${rounded}%`;
   const base = 10n ** BigInt(places);
   return `${sign}${rounded / base}.${(rounded % base).toString().padStart(places, "0")}%`;
-}
-
-function divideRounded(numerator: bigint, denominator: bigint) {
-  if (denominator === 0n) throw new Error("Cannot divide by zero.");
-  const sign = numerator < 0n !== denominator < 0n ? -1n : 1n;
-  const n = numerator < 0n ? -numerator : numerator;
-  const d = denominator < 0n ? -denominator : denominator;
-  return sign * ((n + d / 2n) / d);
 }
 
 export type GradeAssessment = { id: string; name: string; weight: string; scoreEarned: string | null; scoreMax: string | null; status: string };

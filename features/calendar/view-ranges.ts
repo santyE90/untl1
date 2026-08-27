@@ -1,4 +1,4 @@
-import { addCalendarDays } from "../finance/date-ranges";
+import { addCalendarDays } from "../shared/date-ranges";
 import { assertCalendarDate, monthGridRange } from "./dates";
 
 export type CalendarViewName = "month" | "week" | "day" | "agenda";
