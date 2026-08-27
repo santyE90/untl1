@@ -73,6 +73,99 @@ export type Database = {
           },
         ]
       }
+      finance_budget_categories: {
+        Row: {
+          amount: number
+          budget_id: string
+          category_id: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          budget_id: string
+          category_id: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          budget_id?: string
+          category_id?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_budget_categories_budget_owner_fk"
+            columns: ["budget_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "finance_budgets"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "finance_budget_categories_category_owner_fk"
+            columns: ["category_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "finance_categories"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "finance_budget_categories_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finance_budgets: {
+        Row: {
+          budget_month: string
+          created_at: string
+          currency: string
+          id: string
+          notes: string | null
+          overall_limit: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          budget_month: string
+          created_at?: string
+          currency?: string
+          id?: string
+          notes?: string | null
+          overall_limit: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          budget_month?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          notes?: string | null
+          overall_limit?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_budgets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       finance_categories: {
         Row: {
           archived_at: string | null
@@ -533,6 +626,16 @@ export type Database = {
           transfer_amount: number
           transfer_description?: string
           transfer_notes?: string
+        }
+        Returns: string
+      }
+      save_monthly_finance_budget: {
+        Args: {
+          budget_currency: string
+          budget_month: string
+          budget_notes?: string
+          category_limits?: Json
+          overall_amount: number
         }
         Returns: string
       }

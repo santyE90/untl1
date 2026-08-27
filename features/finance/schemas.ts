@@ -71,3 +71,10 @@ export const incomeSchema = recurringBase.extend({
   categoryId: z.union([id, z.literal("")]).transform((value) => value || null),
   nextPayday: date,
 });
+
+export const budgetSchema = z.object({
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Choose a valid month."),
+  currency: z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/, "Choose a valid currency."),
+  overallLimit: money,
+  notes: optionalText(2000),
+});

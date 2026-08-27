@@ -1,6 +1,6 @@
 # Life Organizer
 
-Life Organizer is a responsive personal-management application built with Next.js 16 and Supabase. The working application includes public email/password authentication, private profiles, a responsive app shell, and Finance Core: accounts, exact derived balances, categorized transactions, atomic transfers, and recurring bill/payday schedules.
+Life Organizer is a responsive personal-management application built with Next.js 16 and Supabase. The working application includes public email/password authentication, private profiles, a responsive app shell, and Finance: accounts, exact derived balances, categorized transactions, atomic transfers, recurring schedules, monthly budgets, and deterministic analytics.
 
 [docs/project-architecture.md](docs/project-architecture.md) is the detailed source of truth for schema decisions, ledger semantics, security boundaries, and roadmap.
 
@@ -40,32 +40,31 @@ Open <http://localhost:3000>.
 
 ## Hosted Supabase migrations
 
-Hosted migrations are never applied automatically. The linked CLI should show the accepted profiles migration and the pending Finance migration:
+Hosted migrations are never applied automatically. The linked CLI should show the accepted profiles/Finance Core migrations and the pending Phase 2B migration:
 
 ```text
 supabase/migrations/20260826000100_create_profiles.sql
 supabase/migrations/20260826000200_finance_core.sql
+supabase/migrations/20260827000100_budgeting_analytics.sql
 ```
 
-For Finance Phase 2A, inspect the pending migration and run:
+For the pending Finance Phase 2B migration, inspect it and run:
 
 ```bash
 npm run db:push
 npm run db:types:linked
 ```
 
-Confirm the push prompt lists only `20260826000200_finance_core.sql`. The second command replaces `types/database.ts` with hosted generated types after the schema exists. No additional Supabase dashboard settings are required for Finance.
+Confirm the push prompt lists only `20260827000100_budgeting_analytics.sql`. The second command replaces `types/database.ts` with hosted generated types after the schema exists. No additional Supabase dashboard settings are required for Finance.
 
-If SQL Editor is preferred, run the entire Finance migration there, then repair/confirm CLI migration history before a future `db:push`; do not let the CLI reapply the same SQL.
+If SQL Editor is preferred, run the entire Phase 2B migration there, then repair/confirm CLI migration history before a future `db:push`; do not let the CLI reapply the same SQL.
 
-The Finance migration creates:
+The Phase 2B migration creates:
 
-- owned accounts and per-user seeded categories;
-- auditable signed transactions and soft-void behavior;
-- an immutable transfer header plus authenticated atomic transfer function;
-- recurring bill and income templates;
-- the security-invoker derived-balance view;
-- composite ownership constraints, indexes, least-privilege grants, and RLS.
+- one normalized monthly budget per user/month/currency;
+- optional category limits with composite ownership protection;
+- an atomic authenticated budget-save function;
+- read-only table grants, RLS, checks, and indexes.
 
 ## Quality commands
 
@@ -94,7 +93,7 @@ npm run db:stop
 ```text
 app/                 routes, layouts, and HTTP boundaries
 components/          app shell and shared UI
-features/finance/    Finance actions, queries, validation, exact money, recurrence, UI
+features/finance/    Finance actions, queries, exact calculations, charts, validation, UI
 lib/                 authentication and Supabase infrastructure
 supabase/migrations/ ordered schema history
 supabase/tests/      pgTAP security/isolation suites
@@ -108,19 +107,22 @@ docs/                durable architecture and project decisions
 - Server Actions validate untrusted input and derive ownership from the session.
 - RLS and composite ownership foreign keys prevent cross-user reads and references.
 - Authenticated column grants protect owner IDs, audit fields, and opening balances.
-- Transfers can only be created by one narrowly scoped atomic database function.
+- Transfers and budgets can only be saved through narrowly scoped atomic database functions.
 - Financial records are archived, paused, or voided instead of destructively deleted.
 - The browser receives no service-role or OpenAI secret.
 
 ## Scope
 
-Implemented through Finance Core Phase 2A:
+Implemented through Finance Phase 2B:
 
 - signup, email confirmation, login/logout, protected sessions, and profiles;
 - responsive desktop/mobile application shell;
 - accounts, default/custom categories, transaction create/read/update/void;
 - atomic same-currency transfers and exact derived balances;
 - recurring bill and income/payday templates;
+- monthly overall/category budgets with historical navigation;
+- income, expense, cash-flow, category, month-comparison, recurring-cost, and net-worth analytics;
+- focused responsive Recharts visualizations;
 - application unit tests and database RLS test files.
 
-Deferred until later approval: budgeting, advanced analytics, forecasting, receipt OCR, bank imports, Calendar, School, Tasks, Goals, AI, Python/ML, and notification delivery.
+Deferred until later approval: predictive forecasting, receipt OCR, bank imports, account-optional recurring schedules, Calendar, School, Tasks, Goals, AI, Python/ML, and notification delivery.

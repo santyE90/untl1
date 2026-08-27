@@ -31,6 +31,19 @@ export function addMoney(values: Array<string | number | Money>): Money {
   }, BigInt(0));
 }
 
+export function multiplyMoney(value: string | number | Money, multiplier: bigint): Money {
+  const parsed = typeof value === "bigint" ? value : parseMoney(value);
+  return parsed * multiplier;
+}
+
+export function divideMoneyRounded(value: Money, divisor: bigint): Money {
+  if (divisor <= BigInt(0)) throw new Error("Divisor must be positive.");
+  const negative = value < BigInt(0);
+  const absolute = negative ? -value : value;
+  const quotient = (absolute + divisor / BigInt(2)) / divisor;
+  return negative ? -quotient : quotient;
+}
+
 export function formatMoney(value: string | number | Money, currency = "CAD"): string {
   const scaled = typeof value === "bigint" ? value : parseMoney(value);
   const negative = scaled < BigInt(0);

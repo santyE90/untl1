@@ -1,10 +1,10 @@
 # Life Organizer: Project Architecture
 
-Status: Foundation and Authentication accepted; Finance Core Phase 2A implemented locally
+Status: Foundation, Authentication, and Finance Core Phase 2A accepted; Finance Phase 2B implemented locally
 
-Last reviewed: 2026-08-26
+Last reviewed: 2026-08-27
 
-Current boundary: Do not begin Budgeting, Calendar, School, Tasks, Goals, Analytics, AI, integrations, or Python until the next milestone is approved.
+Current boundary: Do not begin forecasting, Calendar, School, Tasks, Goals, AI, integrations, OCR, or Python until the next milestone is approved.
 
 This is the durable architectural source of truth for Life Organizer. It records decisions that future implementation sessions must preserve.
 
@@ -158,7 +158,7 @@ type CalendarItem = {
 
 ### Analytics
 
-Future analytics should query posted income/expense by date range and category, the account-balance view, and active recurring obligations. Transfers are excluded by `kind`, not merchant/category guessing. Budgeting, forecasting, stored aggregates, and charts are deferred.
+Finance analytics query posted income/expense by date range and category, the account-balance view, monthly budgets, and active recurring obligations. Transfers are excluded by `kind`, not merchant/category guessing. Forecasting and stored aggregates remain deferred.
 
 ### AI
 
@@ -181,17 +181,92 @@ Semantic controls use an accessible darker primary (`#7f4e91`) with white text. 
 Migration history:
 
 1. `20260826000100_create_profiles.sql` - applied to hosted Supabase and accepted.
-2. `20260826000200_finance_core.sql` - Phase 2A schema; pending owner application to hosted Supabase.
+2. `20260826000200_finance_core.sql` - Phase 2A schema; applied to hosted Supabase and accepted.
+3. `20260827000100_budgeting_analytics.sql` - Phase 2B budget schema and atomic save function; pending owner application.
 
-The CLI is linked. After review, apply pending migrations with `npm run db:push`, inspect the output before confirming, then run `npm run db:types:linked`. `types/database.ts` currently carries the generated shape plus the pending local Finance shape so the application can compile before the hosted migration exists; linked generation becomes authoritative immediately after push.
+The CLI is linked. After review, apply pending migrations with `npm run db:push`, inspect the output before confirming, then run `npm run db:types:linked`. `types/database.ts` carries the last hosted generated schema plus the pending local budget shape so the application can compile before the migration exists remotely; linked generation becomes authoritative immediately after push.
 
 Docker is optional for application development but required by the local Supabase stack and `npm run db:test`. Never assume a local reset has changed hosted infrastructure.
 
 ## 9. Roadmap
 
 - Phase 0/1: Foundation, authentication, responsive shell - accepted.
-- Phase 2A: Finance ledger, accounts, categories, transactions, transfers, recurring templates - implemented locally, awaiting hosted migration and browser acceptance.
-- Phase 2B: Budgeting and any approved recurrence advancement/forecast work - blocked pending review.
+- Phase 2A: Finance ledger, accounts, categories, transactions, transfers, recurring templates - accepted.
+- Phase 2B: Monthly budgeting and deterministic Finance analytics - implemented locally, awaiting hosted migration and browser acceptance.
+- Future Finance: optional-account recurring schedules, recurrence advancement, forecasting, import/reconciliation, and richer analytics - blocked pending review.
 - Later: Calendar, School, Tasks/Goals, notifications/analytics, controlled AI, integrations/data science.
 
-Deferred finance decisions include currency conversion, import/deduplication, reconciliation, receipt storage/OCR, recurring transaction generation, richer recurrence rules, editing/voiding an entire transfer, budgets, forecasting, and advanced analytics.
+Deferred finance decisions include currency conversion, import/deduplication, reconciliation, receipt storage/OCR, recurring transaction generation, richer recurrence rules, editing/voiding an entire transfer, forecasting, and subscription detection.
+
+## 10. Finance Phase 2B: Budgeting and analytics
+
+### 10.1 Budget schema and persistence
+
+`finance_budgets` stores one overall spending limit per `(user_id, budget_month, currency)`. `budget_month` is always the first date of a calendar month. `finance_budget_categories` stores only optional category limits and uses composite ownership foreign keys to both its budget and category. Both limits use `numeric(19,4)`.
+
+Budgets never store actual spending, utilization, or remaining amounts. Those values are derived from the authoritative transaction ledger, so editing or voiding a transaction immediately changes budget usage without a synchronization job. Historical months remain queryable as independent budget rows.
+
+Authenticated clients receive read-only table grants. `public.save_monthly_finance_budget` is the only mutation path. This pinned-search-path security-definer function:
+
+1. derives the owner from `auth.uid()`;
+2. validates month, currency, notes, overall limit, and the JSON category-limit set;
+3. verifies every category is an owned expense-compatible category;
+4. upserts the monthly budget and replaces its category limits in one database transaction.
+
+Omitting a category from the submitted set removes its limit. It does not remove the category or any historical transaction. An archived category already attached to a historical budget can be preserved when that budget is edited.
+
+### 10.2 Budget calculations
+
+Budget usage counts only `status = 'posted'` and `kind = 'expense'` transactions in the selected inclusive date range. Income, transfers, pending transactions, and voided transactions do not count. Expense ledger values are negative, but reporting uses their positive magnitude.
+
+```text
+remaining           = limit - actual spending
+over amount         = max(actual spending - limit, 0)
+utilization         = actual spending / limit
+unbudgeted spending = expense totals whose category has no limit
+```
+
+An overall budget and its category limits are independent planning controls; category limits are not required to sum to the overall limit. Categories without a limit still appear in spending analytics. Categories with a limit and no spending report zero actual usage.
+
+### 10.3 Analytics architecture
+
+`features/finance/analytics.ts` contains pure exact-money calculations. `analytics-queries.ts` is the RLS-bound server data layer. Pages receive prepared domain results; Recharts client components receive only small serializable visualization arrays. Future controlled AI tools may call the same query/service layer rather than reimplement calculations.
+
+Supported deterministic results include:
+
+- posted income, spending, and net cash flow by currency and date range;
+- spending by category and day, average daily spending, and largest expenses;
+- current/previous month comparisons with `null` percentage change when the prior denominator is zero;
+- overall/category budget usage, overage, remaining, and unbudgeted spending;
+- net worth by currency;
+- normalized recurring bill totals by currency, category, and account;
+- upcoming obligations and historical monthly budgets.
+
+The UI labels `income - expenses` as **net cash flow**, not invested savings. The optional rate is `(income - expenses) / income`; it is unavailable when income is zero.
+
+### 10.4 Date ranges and comparisons
+
+Transactions use PostgreSQL `date`, so ranges are inclusive date strings without timestamp conversion. Month utilities create exact first/last dates using UTC calendar arithmetic. The current month/date is selected using the profile IANA timezone (default `America/Toronto`) before querying date columns. Previous and arbitrary months use `YYYY-MM` keys.
+
+Current-month versus previous-month comparisons are explicitly labelled as partial until the current month closes. Percentage change is not shown when previous spending is zero, because an infinite/undefined percentage would be misleading.
+
+### 10.5 Recurring cost normalization
+
+Recurring bills remain templates; analytics does not create future transactions. Expected annual cost uses:
+
+- weekly: amount x 52;
+- biweekly: amount x 26;
+- monthly: amount x 12;
+- yearly: amount x 1.
+
+Expected monthly cost is the normalized annual result divided by 12 with four-decimal rounding. These are planning estimates, not predictive forecasts or proof that a payment occurred.
+
+### 10.6 Net worth and currencies
+
+Net worth sums current derived balances only for active accounts with `include_in_net_worth = true`. Negative credit-card balances reduce net worth. Archived accounts retain their history and balance but remain excluded from the current net-worth presentation, matching Phase 2A overview semantics.
+
+All budgets and analytics remain currency-scoped. CAD and USD values are shown separately and are never combined without an exchange-rate model.
+
+### 10.7 Approved deferred scheduling change
+
+Recurring bills and income currently require an account because that is the deployed Phase 2A schema. A product requirement approved after Phase 2A is to allow schedules to be created before accounts exist. In the future migration, schedule account foreign keys should become optional; Finance and Calendar projections must work without them, while recording an actual paid/received transaction must still require an account. Phase 2B intentionally does not implement this change.

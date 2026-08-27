@@ -117,7 +117,7 @@ export async function createTransfer(formData: FormData) {
   if (!parsed.success) fail(parsed.error.issues[0]?.message ?? "Check the transfer details.");
   const { supabase } = await financeContext();
   const data = parsed.data;
-  const { error } = await supabase.rpc("create_finance_transfer", { source_account: data.sourceAccountId, destination_account: data.destinationAccountId, transfer_amount: dbNumeric(moneyToDecimal(parseMoney(data.amount))), occurred_on: data.transferDate, transfer_description: data.description, transfer_notes: data.notes });
+  const { error } = await supabase.rpc("create_finance_transfer", { source_account: data.sourceAccountId, destination_account: data.destinationAccountId, transfer_amount: dbNumeric(moneyToDecimal(parseMoney(data.amount))), occurred_on: data.transferDate, transfer_description: data.description ?? undefined, transfer_notes: data.notes ?? undefined });
   if (error) fail(error.message);
   done("Transfer completed atomically.");
 }
