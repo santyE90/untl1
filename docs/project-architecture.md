@@ -1,10 +1,10 @@
 # LifeStack: Project Architecture
 
-Status: LifeStack Phase 7 complete for V1; Analytics Phase 8A and its focused custom-range/drill-down follow-up are implemented locally. Finance through Phase 2C, Calendar through Phase 3B, School through Phase 4B, Tasks Phase 5A, Goals Phase 5B, Phase 6, and Assistant Phases 7A–7F are implemented.
+Status: LifeStack Phase 7 complete for V1; Analytics Phases 8A–8C are implemented locally. Finance through Phase 2C, Calendar through Phase 3B, School through Phase 4B, Tasks Phase 5A, Goals Phase 5B, Phase 6, and Assistant Phases 7A–7F are implemented.
 
 Last reviewed: 2026-08-28
 
-Current boundary: Review the focused Analytics custom-range/drill-down follow-up. Do not begin Phase 8C, add AI-generated analytics, custom reports/exports, forecasting, snapshots, scoring, or change Phase 7 mutation boundaries without a separately approved milestone.
+Current boundary: Review Analytics Phase 8C. Do not begin another phase, add AI-generated analytics, custom reports/exports, forecasting, snapshots, scoring, or change Phase 7 mutation boundaries without a separately approved milestone.
 
 This is the durable architectural source of truth for LifeStack. It records decisions that future implementation sessions must preserve.
 
@@ -829,3 +829,15 @@ Tasks report created/completed counts within the range, currently overdue active
 Phase 8A stores no summaries, rollups, snapshots, or caches. Charts are responsive Recharts views over deterministic DTOs, with the same values also available in text/cards and explicit empty states. No OpenAI call, Assistant tool, database migration, generated type change, materialized view, service role, or hosted configuration is introduced.
 
 The focused Analytics range/navigation follow-up adds shareable custom URLs in the form `/analytics?range=custom&from=YYYY-MM-DD&to=YYYY-MM-DD`. The server validates real inclusive calendar dates, ordering, and a 366-day maximum; invalid input safely displays the default last-30-day result with an explanatory validation state. Custom ranges of at most 31 days use daily buckets, 32–120 days use seven-day buckets anchored to the range start, and longer accepted ranges use deterministic calendar-month buckets. Analytics remains a summary surface: restrained internal links lead to authoritative Finance, School, Tasks, and Goals routes, including exact course and Goal IDs where available, rather than duplicating domain detail/editing behavior.
+
+## 27. Analytics Phase 8C: deterministic deep domain reporting
+
+The concise `/analytics` overview now navigates to `/analytics/finance`, `/analytics/school`, `/analytics/tasks`, and `/analytics/goals`. Every route reuses the same preset/custom range resolver, 366-day inclusive bound, profile timezone, and daily/weekly/monthly bucketing. Domain pages use `features/analytics/deep-service.ts` with one `AuthenticatedAppContext`, ordinary RLS-bound queries, no user-supplied user ID, no service role, and pure DTO calculations in `deep-calculations.ts`. Independent queries are concurrent; Finance budget allocations use one bounded follow-up query for the selected budget IDs rather than an N+1 loop, and Task history is bounded through separate created/completed period queries plus the active current set.
+
+Finance comparisons use the immediately preceding equal-duration date range. Percentage change is `(selected - previous) / previous`; a zero previous value produces an explicit non-comparable state rather than division by zero. Posted income/expense semantics, transfer/pending/void exclusion, exact scaled money, and per-currency isolation remain authoritative. Category shares/ranks and exact-entered merchant groups are currency-specific. Budget reporting remains monthly: every configured budget in a calendar month touched by the selection is evaluated against that complete month with existing Phase 2B eligible-spending and allocation rules. Budgets are never prorated across arbitrary partial ranges.
+
+School reporting reuses `calculateCourseGrade`, `calculateCourseTarget`, `assessmentPercentage`, and exact scaled arithmetic. It presents chronological assessment performance, current per-course standing/target state, assessment-type summaries with explicit sample counts, and bounded workload totals. Missed work is zero where authoritative; exempt work is identified and excluded from grade/performance/weight summaries. Type-level averages are explicitly unweighted assessment-result summaries and never replace per-course standing or claim to be GPA.
+
+Task reporting uses authoritative creation/completion timestamps, local date-only and instant due semantics, median creation-to-completion duration, deadline outcomes, priority counts, and estimate coverage. Metrics identify their eligible/sample populations and never combine into a productivity score. Goal reporting shows current progress modes/values (including values above target), completion events, deadline state, measured coverage, and fixed-category counts without averaging incompatible modes.
+
+Historical net-worth and Goal-progress charts are deliberately absent. Account balance rows provide current derived balances but no historical snapshots, and Goals retain current progress rather than a change log. Reconstructing or inventing those histories would misrepresent authoritative state. Phase 8C adds no snapshot/rollup table, materialized view, migration, background job, AI tool, or OpenAI request.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyticsLocalDate, bucketDate, dateInRange, enumerateBuckets, getAnalyticsRange, parseAnalyticsRangeKey, resolveAnalyticsRange } from "./date-range";
+import { analyticsLocalDate, bucketDate, dateInRange, enumerateBuckets, getAnalyticsRange, parseAnalyticsRangeKey, previousAnalyticsRange, resolveAnalyticsRange } from "./date-range";
 
 describe("Analytics date ranges", () => {
   it("builds supported inclusive ranges and defaults safely", () => {
@@ -53,5 +53,9 @@ describe("Analytics date ranges", () => {
     expect(weekly.bucket).toBe("week"); expect(bucketDate(weekly.start, weekly)).toBe(enumerateBuckets(weekly)[0]); expect(enumerateBuckets(weekly)).toContain(bucketDate(weekly.end, weekly));
     expect(monthly.bucket).toBe("month"); expect(enumerateBuckets(monthly)).toEqual(["2026-01-15", "2026-02-01", "2026-03-01", "2026-04-01", "2026-05-01", "2026-06-01", "2026-07-01", "2026-08-01"]); expect(bucketDate(monthly.end, monthly)).toBe("2026-08-01");
     expect(new Set(enumerateBuckets(monthly)).size).toBe(enumerateBuckets(monthly).length);
+  });
+  it("calculates the immediately preceding equal-duration period across month boundaries", () => {
+    expect(previousAnalyticsRange({ start: "2026-08-01", end: "2026-08-30" })).toEqual({ start: "2026-07-02", end: "2026-07-31" });
+    expect(previousAnalyticsRange({ start: "2026-08-28", end: "2026-08-28" })).toEqual({ start: "2026-08-27", end: "2026-08-27" });
   });
 });

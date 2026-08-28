@@ -55,13 +55,13 @@ supabase/migrations/20260827000700_tasks_core.sql
 supabase/migrations/20260827000800_goals_core.sql
 ```
 
-Assistant Phase 7F and Analytics Phase 8A have no schema changes and no pending migration. Before a future schema push, inspect the linked dry-run:
+Assistant Phase 7F and Analytics Phases 8A–8C have no schema changes and no pending migration. Before a future schema push, inspect the linked dry-run:
 
 ```bash
 npm run db:push -- --dry-run
 ```
 
-After any future migration is applied, run `npm run db:types:linked`. No Supabase Dashboard changes are required for Phase 7F or Analytics Phase 8A.
+After any future migration is applied, run `npm run db:types:linked`. No Supabase Dashboard changes are required for Phase 7F or Analytics Phases 8A–8C.
 
 ## Quality commands
 
@@ -116,7 +116,7 @@ docs/                durable architecture and project decisions
 
 ## Scope
 
-Implemented through Analytics Phase 8A plus its focused custom-range/drill-down follow-up:
+Implemented through Analytics Phase 8C:
 
 - signup, email confirmation, login/logout, protected sessions, and profiles;
 - responsive desktop/mobile application shell;
@@ -171,6 +171,8 @@ Implemented through Analytics Phase 8A plus its focused custom-range/drill-down 
 - exact School score handling, hypothetical-versus-actual safeguards, trusted assessment references, and optimistic School update protection.
 - protected cross-module Analytics with Last 7/30/90 days, This month, and Previous month ranges;
 - exact currency-separated Finance trends, per-course School standings, Task completion trends, and per-Goal progress with deterministic empty states.
+- deep `/analytics/finance`, `/analytics/school`, `/analytics/tasks`, and `/analytics/goals` reports with shared preset/custom ranges;
+- exact previous-period Finance comparisons, monthly unprorated budget performance, assessment/workload reporting, Task lifecycle metrics, and current Goal health.
 
 Deferred until later approval: Task archive/delete/recurrence/batches; Calendar recurrence/reminders/archive/delete/occurrence edits; Goal archive/delete/milestones/batches/automatic cross-domain progress; all School writes except the four supported individual assessment operations; all Finance Assistant writes; persistent chat history/memory; recurring-task occurrence completion; intelligent scheduling; advanced analytics, exports, forecasting, and saved reports; notifications; external integrations; and Python/ML.
 

@@ -4,6 +4,7 @@ import { BarChart3, CheckCircle2, GraduationCap, Target, WalletCards } from "luc
 
 import { CourseStandingChart, FinanceTrendChart, TaskTrendChart } from "@/features/analytics/analytics-charts";
 import { analyticsRangeOptions } from "@/features/analytics/date-range";
+import { AnalyticsSectionNav } from "@/features/analytics/range-controls";
 import { getAnalyticsOverview } from "@/features/analytics/service";
 import { formatMoney } from "@/features/finance/money";
 import { formatPercent, parseExact } from "@/features/school/grades";
@@ -28,6 +29,8 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       <div><p className="text-sm font-semibold text-primary">Deterministic cross-module overview</p><h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">Analytics</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Transparent trends from authoritative Finance, School, Tasks, and Goals data. No AI-generated scoring.</p></div>
       <nav aria-label="Analytics date range" className="flex max-w-full gap-2 overflow-x-auto pb-1">{analyticsRangeOptions.map((option) => <Link aria-current={data.rangeSelection.selectedKey === option.key ? "page" : undefined} className={`shrink-0 rounded-full border px-3 py-2 text-xs font-semibold ${data.rangeSelection.selectedKey === option.key ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`} href={option.key === "custom" ? `/analytics?range=custom&from=${data.range.start}&to=${data.range.end}` : `/analytics?range=${option.key}`} key={option.key}>{option.label}</Link>)}</nav>
     </header>
+
+    <AnalyticsSectionNav active="overview"/>
 
     {data.rangeSelection.selectedKey === "custom" ? <form className="rounded-2xl border bg-card p-4" method="get"><input name="range" type="hidden" value="custom"/><div className="flex flex-col gap-3 sm:flex-row sm:items-end"><label className="grid gap-1.5 text-sm font-semibold">From<input className="min-h-11 rounded-lg border bg-background px-3 font-normal" defaultValue={data.rangeSelection.customFrom} name="from" required type="date"/></label><label className="grid gap-1.5 text-sm font-semibold">To<input className="min-h-11 rounded-lg border bg-background px-3 font-normal" defaultValue={data.rangeSelection.customTo} name="to" required type="date"/></label><button className="min-h-11 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90" type="submit">Apply range</button></div>{data.rangeSelection.error ? <p className="mt-3 text-sm text-destructive" role="alert">{data.rangeSelection.error}</p> : <p className="mt-3 text-xs text-muted-foreground">Inclusive local calendar dates, up to 366 days.</p>}</form> : null}
 

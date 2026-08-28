@@ -46,6 +46,12 @@ export function resolveAnalyticsRange(query: { range?: unknown; from?: unknown; 
   return { range: { key: "custom", label: "Custom", start: from, end: to, bucket }, selectedKey: "custom", customFrom: from, customTo: to, error: null };
 }
 
+export function previousAnalyticsRange(range: Pick<AnalyticsRange, "start" | "end">) {
+  const days = inclusiveDays(range.start, range.end);
+  const end = addCalendarDays(range.start, -1);
+  return { start: addCalendarDays(end, -(days - 1)), end };
+}
+
 export function dateInRange(date: string | null, range: { start: string; end: string }) { return Boolean(date && date >= range.start && date <= range.end); }
 export function analyticsLocalDate(instant: string, timeZone: string) { return dateForInstant(instant, timeZone); }
 
