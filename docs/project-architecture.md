@@ -1,10 +1,10 @@
 # LifeStack: Project Architecture
 
-Status: Finance through Phase 2C, Calendar through Phase 3B, School through Phase 4B, Tasks Phase 5A, Goals Phase 5B, Phase 6, and Assistant Phases 7A–7D accepted; Assistant Phase 7E implemented locally
+Status: Finance through Phase 2C, Calendar through Phase 3B, School through Phase 4B, Tasks Phase 5A, Goals Phase 5B, Phase 6, and Assistant Phases 7A–7E accepted; Assistant Phase 7F implemented locally
 
 Last reviewed: 2026-08-28
 
-Current boundary: Complete Assistant Phase 7E Goal mutations while preserving Task and native Calendar writes. Do not add archive/delete, milestone or batch changes, automatic cross-domain progress, School or Finance mutations, persistence/memory, intelligent scheduling, external integrations, Python, or ML.
+Current boundary: Complete Assistant Phase 7F individual School assessment mutations while preserving prior capabilities. Do not add Finance writes, assessment creation/deletion/archive/weight/course changes, other School writes, batches, persistence/memory, external integrations, Python, or ML.
 
 This is the durable architectural source of truth for LifeStack. It records decisions that future implementation sessions must preserve.
 
@@ -793,3 +793,13 @@ Existing Goal reads resolve candidates. A mutation requires an exact owned, non-
 Exact normalized arguments and authoritative before-values are stored behind the same opaque ten-minute, user-bound, cancellable, one-shot token. Goal updates, status changes, and progress changes carry `updated_at`; an intervening manual edit or archive causes a conflict/not-found response and requires a new proposal. Successful results receive a server-derived `/goals/{id}` reference. Privacy-safe telemetry records operation/state/request correlation/duration/error class but not Goal content or arguments.
 
 Goal remains authoritative for its date and lifecycle. Existing Goal-to-Calendar projection and Dashboard summary services observe confirmed deadline, status, and progress changes naturally; no Calendar row or Assistant-specific Dashboard state is created. Phase 7E introduces no schema migration, generated-type change, conversation persistence, or new hosted configuration.
+
+## 24. Assistant Phase 7F: confirmed School assessment mutations
+
+Phase 7F adds proposal-only `update_assessment`, `set_assessment_score`, `clear_assessment_score`, and `set_assessment_status` while preserving the prior Task, native Calendar, and Goal confirmation boundary. A new bounded `get_assessments` read supplements the fourteen existing reads because upcoming-only results cannot safely identify graded, submitted, missed, exempt, or past work. It returns at most forty active-course assessments and explicit truncation metadata.
+
+School form actions and Assistant confirmation share `features/school/mutations.ts`. All mutations derive ownership from authenticated context, qualify reads/writes by owner, retain ordinary RLS, reject course reassignment, and use the proposal-time `updated_at` for stale-write protection. Stored School text is untrusted preview data. The model receives neither a `userId` nor arbitrary table access.
+
+Scores enter as exact decimal strings: raw earned/maximum or an explicit percentage represented as that percentage out of 100. Existing scaled-integer grade functions compute equivalence and course standing without floating-point business arithmetic. Recording a score marks work graded; clearing it removes both score values and returns graded work to upcoming. Missed work contributes zero at its configured weight, while exempt work is excluded from effective weighting without redistribution. Hypothetical grade questions never create proposals.
+
+Supported metadata is limited to title, assessment type, timing, effort, location, and notes. Date-only assessment dates remain dates; deadline and scheduled wall times are converted with the profile timezone, and scheduled work requires both endpoints. Terms, courses, targets, meetings, resources, assessment creation/deletion/archive, course/weight changes, and batches remain outside the Assistant. Confirmed changes flow through the existing authoritative School grade, Calendar projection, workload, and Dashboard services without duplicate records. Phase 7F adds no schema migration, generated-type change, persistent conversation storage, or hosted configuration.

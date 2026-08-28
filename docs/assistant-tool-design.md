@@ -1,6 +1,6 @@
 # LifeStack Assistant tool design
 
-Status: Phase 7E confirmed Task, native Calendar, and Goal mutations implemented. The 14 read tools remain active; nine mutation functions are proposal-only model capabilities. Assistant persistence does not exist.
+Status: Phase 7F confirmed School assessment mutations implemented. Fifteen bounded reads and thirteen proposal-only mutation functions are active. Assistant persistence does not exist.
 
 ## Phase 7B runtime
 
@@ -89,6 +89,12 @@ Reads require an intentional user request. Low-risk reversible writes require un
 - Confirmation: none.
 - Result: assessment/course references, timing shape, exact weight/score inputs, status, and user-entered effort.
 - Errors: invalid/excessive range, invalid term, unauthenticated session.
+
+### `get_assessments`
+
+- Purpose: bounded lookup of existing assessments in active owned courses, including graded, submitted, missed, and exempt work that an upcoming-only query cannot resolve.
+- Arguments: none; results are capped at 40 with explicit truncation metadata.
+- Result: trusted assessment/course IDs, timing shape, status, exact numeric score/weight strings, effort, location, and notes. Stored text remains untrusted data.
 
 ### `get_course_standing`
 
@@ -224,6 +230,16 @@ All four Goal functions create confirmation proposals and never write inside the
 - Preview: current and proposed values plus the existing target/unit where applicable.
 
 Successful Goal operations return only normalized structured data and a server-derived `/goals/{id}` reference. The process-local token, cancellation, expiry, one-shot execution, replay rejection, New chat invalidation, observability, and untrusted-content rules are unchanged.
+
+## Confirmed School assessment mutation proposals
+
+Phase 7F adds only `update_assessment`, `set_assessment_score`, `clear_assessment_score`, and `set_assessment_status`. Each requires one exact owned, active assessment returned by a read, stores its proposal-time `updated_at`, and executes only after authenticated one-shot confirmation through `features/school/mutations.ts`. RLS and owner-qualified queries hide foreign IDs. Ambiguous names produce no proposal.
+
+`update_assessment` permits title, assessment type, timing, effort, location, and notes. Deadline instants are converted from the profile timezone; scheduled items require explicit start/end wall times; all-day dates remain PostgreSQL dates. It cannot change course, weight, score, status, archive state, or ownership.
+
+`set_assessment_score` accepts either exact earned/maximum decimal strings or an explicitly stated percentage stored as that value out of 100. Scaled-integer grade helpers perform equivalence math without JavaScript floating point, and confirmation marks the assessment `graded`. `clear_assessment_score` removes both values and returns a graded item to `upcoming`. `set_assessment_status` permits Upcoming, Submitted, Missed, or Exempt: Missed contributes zero at its configured weight; Exempt is omitted from effective grade weighting without redistribution. Existing recorded scores must be cleared before returning to Upcoming or Submitted.
+
+Hypothetical score questions are read-only. Assessment creation, deletion/archive, course/weight changes, terms, courses, course targets, meetings, resources, and batches are absent. Finance remains entirely read-only. Confirmed timing/status changes naturally flow through existing School Calendar projections, course standing, workload, Dashboard, and future Assistant reads; no duplicate rows or Assistant-specific state are created.
 
 ## Future mutation designs — unavailable
 

@@ -3,15 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireAuthenticatedUser } from "@/lib/auth/user";
-import { createClient } from "@/lib/supabase/server";
-import { zonedLocalDateTimeToUtc } from "../calendar/dates";
+import { getAuthenticatedAppContext } from "../shared/server-context";
 import { exactToString, parseExact } from "./grades";
-import { assessmentSchema, courseSchema, meetingSchema, resourceSchema, termSchema } from "./schemas";
+import { createAssessment, updateAssessment } from "./mutations";
+import { courseSchema, meetingSchema, resourceSchema, termSchema } from "./schemas";
 
 const text = (formData: FormData, name: string) => String(formData.get(name) ?? "");
 const databaseDecimal = (value: string) => exactToString(parseExact(value)) as unknown as number;
-const effortMinutes = (hours: string) => hours ? Number((parseExact(hours) * 60n + 5_000n) / 10_000n) : null;
 
 function fail(path: string, message: string): never { redirect(`${path}?error=${encodeURIComponent(message)}`); }
 function done(path: string, message: string): never {
@@ -22,10 +20,8 @@ function done(path: string, message: string): never {
 }
 
 async function context() {
-  const user = await requireAuthenticatedUser();
-  const supabase = await createClient();
-  const { data } = await supabase.from("profiles").select("timezone").eq("id", user.id).single();
-  return { user, supabase, timezone: data?.timezone ?? "America/Toronto" };
+  const app = await getAuthenticatedAppContext();
+  return { ...app, timezone: app.timeZone };
 }
 
 export async function saveTerm(formData: FormData) {
@@ -80,13 +76,10 @@ export async function saveAssessment(formData: FormData) {
   const scoreMax = text(formData, "scoreMax");
   const requestedStatus = text(formData, "status");
   const status = scoreEarned && scoreMax ? "graded" : requestedStatus === "graded" ? "upcoming" : requestedStatus;
-  const parsed = assessmentSchema.safeParse({ courseId, name: text(formData, "name"), assessmentType: text(formData, "assessmentType"), timingType: text(formData, "timingType"), dueLocal: text(formData, "dueLocal"), startsLocal: text(formData, "startsLocal"), endsLocal: text(formData, "endsLocal"), eventDate: text(formData, "eventDate"), weight: text(formData, "weight"), scoreEarned: status === "missed" ? "" : scoreEarned, scoreMax: status === "missed" ? "" : scoreMax, effortHours: text(formData, "effortHours"), status, location: text(formData, "location"), notes: text(formData, "notes") });
-  if (!parsed.success) fail(destination, parsed.error.issues[0].message);
-  const { user, supabase, timezone } = await context();
-  const data = parsed.data;
-  const row = { course_id: courseId, name: data.name, assessment_type: data.assessmentType, timing_type: data.timingType, due_at: data.timingType === "deadline" ? zonedLocalDateTimeToUtc(data.dueLocal, timezone) : null, starts_at: data.timingType === "scheduled" ? zonedLocalDateTimeToUtc(data.startsLocal, timezone) : null, ends_at: data.timingType === "scheduled" ? zonedLocalDateTimeToUtc(data.endsLocal, timezone) : null, event_date: data.timingType === "all_day" ? data.eventDate : null, weight_percent: databaseDecimal(data.weight), score_earned: data.scoreEarned ? databaseDecimal(data.scoreEarned) : null, score_max: data.scoreMax ? databaseDecimal(data.scoreMax) : null, estimated_effort_minutes: effortMinutes(data.effortHours), status: data.status, location: data.location, notes: data.notes };
-  const result = id ? await supabase.from("assessments").update(row).eq("id", id).eq("user_id", user.id) : await supabase.from("assessments").insert({ user_id: user.id, ...row });
-  if (result.error) fail(destination, result.error.message);
+  const input = { courseId, name: text(formData, "name"), assessmentType: text(formData, "assessmentType"), timingType: text(formData, "timingType"), dueLocal: text(formData, "dueLocal"), startsLocal: text(formData, "startsLocal"), endsLocal: text(formData, "endsLocal"), eventDate: text(formData, "eventDate"), weight: text(formData, "weight"), scoreEarned: status === "missed" ? "" : scoreEarned, scoreMax: status === "missed" ? "" : scoreMax, effortHours: text(formData, "effortHours"), status, location: text(formData, "location"), notes: text(formData, "notes") };
+  const appContext = await getAuthenticatedAppContext();
+  const result = id ? await updateAssessment(id, input, appContext) : await createAssessment(input, appContext);
+  if (!result.ok) fail(destination, result.error.message);
   done(destination, scoreEarned && scoreMax ? "Assessment saved and marked graded." : "Assessment saved.");
 }
 

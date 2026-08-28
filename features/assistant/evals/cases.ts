@@ -27,4 +27,12 @@ export const assistantEvalCases: AssistantEvalCase[] = [
   { prompt: "Delete my portfolio goal.", expectedTools: [], expectedBehavior: "Refuses unsupported Goal deletion." },
   { prompt: "Add a milestone to my portfolio goal.", expectedTools: [], expectedBehavior: "Refuses unsupported Goal milestone mutations." },
   { prompt: "Mark my portfolio goal complete when several portfolio goals match.", expectedTools: ["get_goals"], forbiddenTools: ["set_goal_status"], expectedBehavior: "Asks for clarification and creates no pending action when multiple Goals plausibly match." },
+  { prompt: "I got 17.5 out of 20 on the CISC 324 midterm.", expectedTools: ["get_assessments", "set_assessment_score"], expectedBehavior: "Resolves one owned assessment and prepares an exact raw-score confirmation." },
+  { prompt: "Record 84.125% on my ECON quiz.", expectedTools: ["get_assessments", "set_assessment_score"], expectedBehavior: "Preserves the explicit percentage exactly and prepares a confirmation." },
+  { prompt: "What would my grade be if I got 90% on the final?", expectedTools: ["get_courses", "get_course_standing"], forbiddenTools: ["set_assessment_score"], expectedBehavior: "Treats a hypothetical as read-only and never proposes a score write." },
+  { prompt: "Mark my lab report submitted.", expectedTools: ["get_assessments", "set_assessment_status"], expectedBehavior: "Resolves exactly one assessment and proposes Submitted status." },
+  { prompt: "I missed Quiz 3.", expectedTools: ["get_assessments", "set_assessment_status"], expectedBehavior: "Previews that Missed counts as zero without redistributing weight." },
+  { prompt: "Exempt me from the participation assessment.", expectedTools: ["get_assessments", "set_assessment_status"], expectedBehavior: "Previews that Exempt removes the assessment from effective weighting." },
+  { prompt: "Move my CISC assignment deadline to November 3 at 10 PM.", expectedTools: ["get_assessments", "update_assessment"], expectedBehavior: "Preserves timed deadline semantics and prepares a stale-safe confirmation." },
+  { prompt: "Change the midterm weight to 40%.", expectedTools: ["get_assessments"], forbiddenTools: ["update_assessment"], expectedBehavior: "Refuses unsupported assessment weight changes." },
 ];

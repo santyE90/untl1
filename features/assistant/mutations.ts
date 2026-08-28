@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const assistantMutationNameSchema = z.enum(["create_task", "update_task", "set_task_status", "create_calendar_event", "update_calendar_event", "create_goal", "update_goal", "set_goal_status", "update_goal_progress"]);
+export const assistantMutationNameSchema = z.enum(["create_task", "update_task", "set_task_status", "create_calendar_event", "update_calendar_event", "create_goal", "update_goal", "set_goal_status", "update_goal_progress", "update_assessment", "set_assessment_score", "clear_assessment_score", "set_assessment_status"]);
 export type AssistantMutationName = z.infer<typeof assistantMutationNameSchema>;
 
 const nullableId = z.string().uuid().nullable();
@@ -68,6 +68,17 @@ export const updateGoalProposalSchema = z.object({ goalId: z.string().uuid(), ti
 });
 export const setGoalStatusProposalSchema = z.object({ goalId: z.string().uuid(), status: z.enum(["active", "completed"]) }).strict();
 export const updateGoalProgressProposalSchema = z.object({ goalId: z.string().uuid(), currentValue: z.string() }).strict();
+
+export const updateAssessmentProposalSchema = z.object({ assessmentId: z.string().uuid(), title: z.string().trim().min(1).max(160).optional(), assessmentType: z.enum(["assignment", "quiz", "midterm", "final_exam", "project", "lab", "participation", "presentation", "other"]).optional(), timingType: z.enum(["deadline", "scheduled", "all_day"]).optional(), dueLocal: z.string().optional(), startsLocal: z.string().optional(), endsLocal: z.string().optional(), eventDate: z.string().optional(), estimatedEffortMinutes: z.number().int().min(1).max(100000).nullable().optional(), location: z.string().max(1000).nullable().optional(), notes: z.string().max(10000).nullable().optional() }).strict().superRefine((value, context) => {
+  if (Object.keys(value).length === 1) context.addIssue({ code: "custom", message: "At least one assessment field must change." });
+  if ((value.startsLocal === undefined) !== (value.endsLocal === undefined)) context.addIssue({ code: "custom", message: "Scheduled assessments require both start and end times." });
+});
+export const setAssessmentScoreProposalSchema = z.object({ assessmentId: z.string().uuid(), mode: z.enum(["raw", "percentage"]), earned: z.string().nullable(), maximum: z.string().nullable(), percentage: z.string().nullable() }).strict().superRefine((value, context) => {
+  if (value.mode === "raw" && (!value.earned || !value.maximum || value.percentage)) context.addIssue({ code: "custom", message: "Raw scores require earned and maximum values only." });
+  if (value.mode === "percentage" && (!value.percentage || value.earned || value.maximum)) context.addIssue({ code: "custom", message: "Percentage scores require an explicit percentage only." });
+});
+export const clearAssessmentScoreProposalSchema = z.object({ assessmentId: z.string().uuid() }).strict();
+export const setAssessmentStatusProposalSchema = z.object({ assessmentId: z.string().uuid(), status: z.enum(["upcoming", "submitted", "missed", "exempt"]) }).strict();
 
 export const assistantConfirmationRequestSchema = z.object({ token: z.string().min(32).max(160) }).strict();
 export type AssistantMutationPreview = { operation: AssistantMutationName; actionLabel: string; subjectTitle: string; changes: { label: string; before?: string; after: string }[] };

@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(25);
 
 select has_table('public', 'academic_terms', 'academic terms table exists');
 select has_table('public', 'courses', 'courses table exists');
@@ -38,6 +38,9 @@ select is((select count(*) from public.assessments), 1::bigint, 'user A sees onl
 select throws_ok($$ insert into public.courses (user_id, term_id, code, name) values ('4a000000-0000-4000-8000-000000000001', '4b100000-0000-4000-8000-000000000002', 'BAD', 'Cross-owner course') $$, '23503', null, 'a course cannot reference another user term');
 select throws_ok($$ insert into public.assessments (user_id, course_id, name, assessment_type, timing_type, due_at, weight_percent) values ('4a000000-0000-4000-8000-000000000001', '4b200000-0000-4000-8000-000000000002', 'Injected', 'quiz', 'deadline', '2026-10-02 21:00+00', 10) $$, '23503', null, 'an assessment cannot reference another user course');
 select lives_ok($$ update public.assessments set score_earned = 10, score_max = 10, status = 'graded' where id = '4b400000-0000-4000-8000-000000000002' $$, 'cross-user grade update affects no row');
+select lives_ok($$ update public.assessments set name = 'A changed B' where id = '4b400000-0000-4000-8000-000000000002' $$, 'cross-user assessment metadata update affects no row');
+select lives_ok($$ update public.assessments set status = 'missed' where id = '4b400000-0000-4000-8000-000000000002' $$, 'cross-user missed status update affects no row');
+select lives_ok($$ update public.assessments set status = 'exempt' where id = '4b400000-0000-4000-8000-000000000002' $$, 'cross-user exempt status update affects no row');
 select is((select count(*) from public.assessments where id = '4b400000-0000-4000-8000-000000000002'), 0::bigint, 'user A cannot read user B grade data');
 select throws_ok($$ update public.courses set user_id = '4b000000-0000-4000-8000-000000000002' where id = '4a200000-0000-4000-8000-000000000001' $$, '42501', 'permission denied for table courses', 'course ownership cannot be reassigned');
 select throws_ok($$ delete from public.assessments where id = '4a400000-0000-4000-8000-000000000001' $$, '42501', 'permission denied for table assessments', 'hard deletion is not granted');

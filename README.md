@@ -11,7 +11,7 @@ LifeStack is a responsive personal-management application built with Next.js 16 
 - Supabase Auth and PostgreSQL with RLS
 - Zod, Vitest, Supabase migrations, and pgTAP tests
 
-Assistant Phase 7E preserves 14 bounded reads plus Task and native Calendar writes, then adds confirmation-gated Goal creation, editing, lifecycle, and exact progress updates. Model calls create proposals; a separate authenticated one-shot confirmation executes through shared domain services. Conversations are not persisted; see [docs/assistant-tool-design.md](docs/assistant-tool-design.md).
+Assistant Phase 7F preserves the existing reads and confirmed Task, native Calendar, and Goal writes, adds a fifteenth bounded assessment lookup, and enables confirmation-gated updates to individual existing School assessments. Model calls create proposals; a separate authenticated one-shot confirmation executes through shared domain services. Finance remains read-only and conversations are not persisted; see [docs/assistant-tool-design.md](docs/assistant-tool-design.md).
 
 ## Local setup
 
@@ -55,13 +55,13 @@ supabase/migrations/20260827000700_tasks_core.sql
 supabase/migrations/20260827000800_goals_core.sql
 ```
 
-Assistant Phase 7E has no schema changes and no pending migration. Before a future schema push, inspect the linked dry-run:
+Assistant Phase 7F has no schema changes and no pending migration. Before a future schema push, inspect the linked dry-run:
 
 ```bash
 npm run db:push -- --dry-run
 ```
 
-After any future migration is applied, run `npm run db:types:linked`. No Supabase Dashboard changes are required for Phase 7E.
+After any future migration is applied, run `npm run db:types:linked`. No Supabase Dashboard changes are required for Phase 7F.
 
 ## Quality commands
 
@@ -116,7 +116,7 @@ docs/                durable architecture and project decisions
 
 ## Scope
 
-Implemented through Assistant Phase 7E:
+Implemented through Assistant Phase 7F:
 
 - signup, email confirmation, login/logout, protected sessions, and profiles;
 - responsive desktop/mobile application shell;
@@ -168,4 +168,4 @@ Implemented through Assistant Phase 7E:
 - confirmation-gated `create_goal`, `update_goal`, `set_goal_status`, and `update_goal_progress` proposals using shared authenticated Goal services;
 - exact decimal-string Goal progress, independent lifecycle semantics, trusted Goal references, and optimistic Goal update protection.
 
-Deferred until later approval: Task archive/delete/recurrence/batches; Calendar recurrence/reminders/archive/delete/occurrence edits; Goal archive/delete/milestones/batches/automatic cross-domain progress; School and Finance Assistant writes; persistent chat history/memory; recurring-task occurrence completion; intelligent scheduling; analytics; notifications; external integrations; and Python/ML.
+Deferred until later approval: Task archive/delete/recurrence/batches; Calendar recurrence/reminders/archive/delete/occurrence edits; Goal archive/delete/milestones/batches/automatic cross-domain progress; all School writes except the four supported individual assessment operations; all Finance Assistant writes; persistent chat history/memory; recurring-task occurrence completion; intelligent scheduling; analytics; notifications; external integrations; and Python/ML.

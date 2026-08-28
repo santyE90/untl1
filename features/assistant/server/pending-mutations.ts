@@ -10,6 +10,8 @@ import type { CalendarEventMutationResult } from "@/features/calendar/mutations"
 import { createNativeCalendarEvent, updateNativeCalendarEvent } from "@/features/calendar/mutations";
 import type { GoalMutationResult } from "@/features/goals/mutations";
 import { createGoal, setGoalLifecycleStatus, updateGoal } from "@/features/goals/mutations";
+import type { AssessmentMutationResult } from "@/features/school/mutations";
+import { clearAssessmentScore, setAssessmentScore, setAssessmentStatus, updateAssessment } from "@/features/school/mutations";
 import type { ServiceResult } from "@/features/shared/service-result";
 
 export type PendingAssistantMutation =
@@ -20,7 +22,11 @@ export type PendingAssistantMutation =
   | { operation: "update_calendar_event"; eventId: string; input: unknown; expectedUpdatedAt: string }
   | { operation: "create_goal"; input: unknown }
   | { operation: "update_goal" | "update_goal_progress"; goalId: string; input: unknown; expectedUpdatedAt: string }
-  | { operation: "set_goal_status"; goalId: string; status: string; expectedUpdatedAt: string };
+  | { operation: "set_goal_status"; goalId: string; status: string; expectedUpdatedAt: string }
+  | { operation: "update_assessment"; assessmentId: string; input: unknown; expectedUpdatedAt: string }
+  | { operation: "set_assessment_score"; assessmentId: string; score: { mode: "raw" | "percentage"; earned: string | null; maximum: string | null; percentage: string | null }; expectedUpdatedAt: string }
+  | { operation: "clear_assessment_score"; assessmentId: string; expectedUpdatedAt: string }
+  | { operation: "set_assessment_status"; assessmentId: string; status: string; expectedUpdatedAt: string };
 type PendingEntry = { userId: string; expiresAt: number; preview: AssistantMutationPreview; mutation: PendingAssistantMutation };
 const pending = new Map<string, PendingEntry>();
 export const assistantConfirmationTtlMs = 10 * 60_000;
@@ -50,12 +56,12 @@ export function cancelPendingMutation(token: string, userId: string, now = Date.
   return true;
 }
 
-export async function consumePendingMutation(token: string, context: AuthenticatedAppContext, now = Date.now()): Promise<ServiceResult<{ entity: TaskMutationResult | CalendarEventMutationResult | GoalMutationResult; operation: AssistantMutationName }>> {
+export async function consumePendingMutation(token: string, context: AuthenticatedAppContext, now = Date.now()): Promise<ServiceResult<{ entity: TaskMutationResult | CalendarEventMutationResult | GoalMutationResult | AssessmentMutationResult; operation: AssistantMutationName }>> {
   sweep(now);
   const entry = pending.get(token);
   if (!entry || entry.userId !== context.user.id) return { ok: false, error: { code: "not_found", message: "This confirmation is invalid, expired, or already used." } };
   pending.delete(token);
-  let result: ServiceResult<TaskMutationResult | CalendarEventMutationResult | GoalMutationResult>;
+  let result: ServiceResult<TaskMutationResult | CalendarEventMutationResult | GoalMutationResult | AssessmentMutationResult>;
   if (entry.mutation.operation === "create_task") result = await createTask(entry.mutation.input, context);
   else if (entry.mutation.operation === "update_task") result = await updateTask(entry.mutation.taskId, entry.mutation.input, context, entry.mutation.expectedUpdatedAt);
   else if (entry.mutation.operation === "set_task_status") result = await setTaskStatus(entry.mutation.taskId, entry.mutation.status, context, entry.mutation.expectedUpdatedAt);
@@ -63,7 +69,12 @@ export async function consumePendingMutation(token: string, context: Authenticat
   else if (entry.mutation.operation === "update_calendar_event") result = await updateNativeCalendarEvent(entry.mutation.eventId, entry.mutation.input, context, { expectedUpdatedAt: entry.mutation.expectedUpdatedAt, preserveReminders: true });
   else if (entry.mutation.operation === "create_goal") result = await createGoal(entry.mutation.input, context);
   else if (entry.mutation.operation === "set_goal_status") result = await setGoalLifecycleStatus(entry.mutation.goalId, entry.mutation.status, context, entry.mutation.expectedUpdatedAt);
-  else result = await updateGoal(entry.mutation.goalId, entry.mutation.input, context, entry.mutation.expectedUpdatedAt);
+  else if (entry.mutation.operation === "update_goal" || entry.mutation.operation === "update_goal_progress") result = await updateGoal(entry.mutation.goalId, entry.mutation.input, context, entry.mutation.expectedUpdatedAt);
+  else if (entry.mutation.operation === "update_assessment") result = await updateAssessment(entry.mutation.assessmentId, entry.mutation.input, context, entry.mutation.expectedUpdatedAt);
+  else if (entry.mutation.operation === "set_assessment_score") result = await setAssessmentScore(entry.mutation.assessmentId, entry.mutation.score, context, entry.mutation.expectedUpdatedAt);
+  else if (entry.mutation.operation === "clear_assessment_score") result = await clearAssessmentScore(entry.mutation.assessmentId, context, entry.mutation.expectedUpdatedAt);
+  else if (entry.mutation.operation === "set_assessment_status") result = await setAssessmentStatus(entry.mutation.assessmentId, entry.mutation.status, context, entry.mutation.expectedUpdatedAt);
+  else return { ok: false, error: { code: "validation", message: "This pending change is not supported." } };
   return result.ok ? { ok: true, data: { entity: result.data, operation: entry.mutation.operation } } : result;
 }
 
