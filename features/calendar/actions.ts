@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getAuthenticatedAppContext } from "../shared/server-context";
+import { updateCalendarPreference } from "../settings/service";
 import { createNativeCalendarEvent, updateNativeCalendarEvent } from "./mutations";
 import { calendarEventIdSchema, calendarEventSchema } from "./schemas";
 
@@ -67,10 +68,8 @@ export async function restoreCalendarEvent(formData: FormData) {
 
 export async function saveCalendarDefaultView(formData: FormData) {
   const view = text(formData, "view");
-  if (!["month", "week", "day", "agenda"].includes(view)) destinationError("/calendar/settings", "Choose a valid Calendar view.");
-  const context = await getAuthenticatedAppContext();
-  const { error } = await context.supabase.from("profiles").update({ calendar_default_view: view }).eq("id", context.user.id);
-  if (error) destinationError("/calendar/settings", error.message);
+  const result = await updateCalendarPreference({ defaultView: view });
+  if (!result.ok) destinationError("/settings", result.error.message);
   revalidatePath("/calendar", "layout");
-  redirect("/calendar/settings?success=Default%20view%20saved.");
+  redirect("/settings?success=Calendar%20preference%20saved.#calendar");
 }

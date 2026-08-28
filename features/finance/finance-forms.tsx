@@ -3,6 +3,7 @@ import { assignRecurringAccount, createAccount, createBill, createCategory, crea
 
 type Category = { id: string; name: string; category_type: string; archived_at: string | null };
 type FormProps = { accounts: FinanceAccount[]; categories: Category[]; today: string };
+type DefaultCurrencyProps = { defaultCurrency: string };
 
 const input = "h-10 w-full rounded-lg border border-input bg-card px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20";
 const label = "grid gap-1.5 text-sm font-medium";
@@ -16,7 +17,7 @@ function CategoryOptions({ categories, type }: { categories: Category[]; type: "
   return categories.filter((category) => !category.archived_at && [type, "both"].includes(category.category_type)).map((category) => <option key={category.id} value={category.id}>{category.name}</option>);
 }
 
-export function AccountForm({ today }: Pick<FormProps, "today">) {
+export function AccountForm({ today, defaultCurrency }: Pick<FormProps, "today"> & DefaultCurrencyProps) {
   return <form action={createAccount} className="grid gap-4 sm:grid-cols-2">
     <label className={label}>Account name<input className={input} name="name" required maxLength={80} placeholder="Everyday chequing" /></label>
     <label className={label}>Type<select className={input} name="accountType" defaultValue="chequing"><option value="chequing">Chequing</option><option value="savings">Savings</option><option value="credit_card">Credit card</option><option value="cash">Cash</option><option value="investment">Investment</option><option value="other">Other / custom</option></select></label>
@@ -24,7 +25,7 @@ export function AccountForm({ today }: Pick<FormProps, "today">) {
     <label className={label}>Institution<input className={input} name="institution" maxLength={100} placeholder="Optional" /></label>
     <label className={label}>Opening balance<input className={input} name="openingBalance" inputMode="decimal" defaultValue="0.00" required /></label>
     <label className={label}>Opening balance date<input className={input} name="openingBalanceDate" type="date" defaultValue={today} required /></label>
-    <label className={label}>Currency<input className={input} name="currency" defaultValue="CAD" pattern="[A-Za-z]{3}" maxLength={3} required /></label>
+    <label className={label}>Currency<input className={input} name="currency" defaultValue={defaultCurrency} pattern="[A-Za-z]{3}" maxLength={3} required /></label>
     <label className={label}>Credit limit<input className={input} name="creditLimit" inputMode="decimal" placeholder="Credit cards only" /></label>
     <label className="flex items-center gap-2 text-sm font-medium sm:col-span-2"><input type="checkbox" name="includeInNetWorth" defaultChecked /> Include in net worth</label>
     <button className={`${submit} sm:col-span-2`} type="submit">Create account</button>
@@ -66,12 +67,12 @@ export function TransferForm({ accounts, today }: Pick<FormProps, "accounts" | "
   </form>;
 }
 
-export function BillForm({ accounts, categories, today }: FormProps) {
+export function BillForm({ accounts, categories, today, defaultCurrency }: FormProps & DefaultCurrencyProps) {
   return <form action={createBill} className="grid gap-4 sm:grid-cols-2">
     <label className={label}>Bill name<input className={input} name="name" required maxLength={100} /></label>
     <label className={label}>Expected amount<input className={input} name="expectedAmount" inputMode="decimal" min="0.0001" step="0.0001" required /></label>
     <label className={label}>Payment account<select className={input} name="accountId" defaultValue=""><option value="">Unassigned for now</option><AccountOptions accounts={accounts} /></select></label>
-    <label className={label}>Currency<input className={input} name="currency" defaultValue="CAD" pattern="[A-Za-z]{3}" maxLength={3} required /></label>
+    <label className={label}>Currency<input className={input} name="currency" defaultValue={defaultCurrency} pattern="[A-Za-z]{3}" maxLength={3} required /></label>
     <label className={label}>Category<select className={input} name="categoryId" required defaultValue=""><option value="" disabled>Select a category</option><CategoryOptions categories={categories} type="expense" /></select></label>
     <label className={label}>Frequency<select className={input} name="frequency"><option value="weekly">Weekly</option><option value="biweekly">Biweekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select></label>
     <label className={label}>Schedule anchor<input className={input} name="anchorDate" type="date" defaultValue={today} required /></label>
@@ -82,12 +83,12 @@ export function BillForm({ accounts, categories, today }: FormProps) {
   </form>;
 }
 
-export function IncomeForm({ accounts, categories, today }: FormProps) {
+export function IncomeForm({ accounts, categories, today, defaultCurrency }: FormProps & DefaultCurrencyProps) {
   return <form action={createIncome} className="grid gap-4 sm:grid-cols-2">
     <label className={label}>Income source<input className={input} name="name" required maxLength={100} /></label>
     <label className={label}>Expected amount<input className={input} name="expectedAmount" inputMode="decimal" min="0.0001" step="0.0001" required /></label>
     <label className={label}>Destination account<select className={input} name="destinationAccountId" defaultValue=""><option value="">Unassigned for now</option><AccountOptions accounts={accounts} /></select></label>
-    <label className={label}>Currency<input className={input} name="currency" defaultValue="CAD" pattern="[A-Za-z]{3}" maxLength={3} required /></label>
+    <label className={label}>Currency<input className={input} name="currency" defaultValue={defaultCurrency} pattern="[A-Za-z]{3}" maxLength={3} required /></label>
     <label className={label}>Category (optional)<select className={input} name="categoryId" defaultValue=""><option value="">None</option><CategoryOptions categories={categories} type="income" /></select></label>
     <label className={label}>Frequency<select className={input} name="frequency"><option value="weekly">Weekly</option><option value="biweekly">Biweekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select></label>
     <label className={label}>Schedule anchor<input className={input} name="anchorDate" type="date" defaultValue={today} required /></label>

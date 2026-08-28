@@ -1,10 +1,10 @@
 # LifeStack: Project Architecture
 
-Status: LifeStack Phase 7 complete for V1; Analytics Phases 8A–8C are implemented locally. Finance through Phase 2C, Calendar through Phase 3B, School through Phase 4B, Tasks Phase 5A, Goals Phase 5B, Phase 6, and Assistant Phases 7A–7F are implemented.
+Status: LifeStack Phase 7 and Phase 8 Analytics are complete for V1; Settings Phase 9 is implemented locally. Finance through Phase 2C, Calendar through Phase 3B, School through Phase 4B, Tasks Phase 5A, Goals Phase 5B, Phase 6, and Assistant Phases 7A–7F are implemented.
 
 Last reviewed: 2026-08-28
 
-Current boundary: Review Analytics Phase 8C. Do not begin another phase, add AI-generated analytics, custom reports/exports, forecasting, snapshots, scoring, or change Phase 7 mutation boundaries without a separately approved milestone.
+Current boundary: Review Settings Phase 9. Do not begin another phase, add new account/auth flows, notification/integration settings, themes, or change Phase 7/8 boundaries without a separately approved milestone.
 
 This is the durable architectural source of truth for LifeStack. It records decisions that future implementation sessions must preserve.
 
@@ -841,3 +841,13 @@ School reporting reuses `calculateCourseGrade`, `calculateCourseTarget`, `assess
 Task reporting uses authoritative creation/completion timestamps, local date-only and instant due semantics, median creation-to-completion duration, deadline outcomes, priority counts, and estimate coverage. Metrics identify their eligible/sample populations and never combine into a productivity score. Goal reporting shows current progress modes/values (including values above target), completion events, deadline state, measured coverage, and fixed-category counts without averaging incompatible modes.
 
 Historical net-worth and Goal-progress charts are deliberately absent. Account balance rows provide current derived balances but no historical snapshots, and Goals retain current progress rather than a change log. Reconstructing or inventing those histories would misrepresent authoritative state. Phase 8C adds no snapshot/rollup table, materialized view, migration, background job, AI tool, or OpenAI request.
+
+## 28. Settings Phase 9: centralized profile preferences
+
+`/settings` is the authenticated owner of LifeStack-wide preferences already stored on `profiles`: default currency, IANA timezone, week start, and Calendar default view. `features/settings/service.ts` validates structured input, derives identity exclusively from `AuthenticatedAppContext`, updates only the authenticated profile through the ordinary RLS-bound client, and returns `ServiceResult` values. General currency/timezone/week-start changes are one atomic profile update; Calendar view is a separate explicit save. Actions revalidate affected routes instead of introducing client-global preference state. Settings accepts no user ID and cannot mutate domain records.
+
+Default currency is normalized to a three-letter uppercase code. It supplies defaults for new supported Finance accounts, recurring bills, and recurring income, but never converts or rewrites accounts, transactions, budgets, schedules, transfers, or Goal units. Finance creation uses the authenticated profile currency and profile-local `today`; existing ledger values remain authoritative.
+
+Timezone validation uses the shared IANA validator. Changing the profile timezone changes future local display/input context and `AuthenticatedAppContext.today`; stored `timestamptz` values remain absolute instants, date-only values remain unchanged, and native recurring Calendar series retain their source timezone. Calendar, Dashboard, Tasks, School, Analytics, Finance planning, and Assistant requests already obtain current context rather than caching a hard-coded timezone. Week start continues to drive Calendar month/week ranges; Phase 8 range-anchored Analytics buckets deliberately retain their documented semantics.
+
+The Calendar default-view editor is centralized in `/settings`; `/calendar/settings` remains the archive/restore surface and links back to the centralized preference. The Assistant section is informational because model, cost, confirmation, rate, and security controls remain application-owned; it explains ephemeral conversations, bounded authenticated tools, confirmation, and timezone context. Account & Data displays read-only email, profile creation date, and preference summaries. Email/password changes, account deletion, portability/export, notifications, themes, integrations, billing, and admin/developer controls remain deferred. Phase 9 adds no migration or new preference column.

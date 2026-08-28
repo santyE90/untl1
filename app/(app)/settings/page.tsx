@@ -1,10 +1,34 @@
 import type { Metadata } from "next";
-import { Settings } from "lucide-react";
+import Link from "next/link";
+import { Bot, CalendarDays, CircleUserRound, Database, Settings2 } from "lucide-react";
 
-import { UpcomingSection } from "@/components/app-shell/upcoming-section";
+import { saveCalendarPreference, saveGeneralPreferences } from "@/features/settings/actions";
+import { getSettingsData } from "@/features/settings/service";
+import { SettingsSubmitButton } from "@/features/settings/submit-button";
+import { supportedIanaTimeZones } from "@/features/shared/timezones";
 
 export const metadata: Metadata = { title: "Settings" };
+const panel = "rounded-2xl border bg-card p-5 shadow-sm sm:p-6"; const input = "min-h-11 w-full rounded-lg border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20";
+const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-export default function SettingsPage() {
-  return <UpcomingSection description="Profile and preference editing will be added after the authentication foundation is verified." icon={Settings} title="Settings" />;
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ success?: string; error?: string; section?: string }> }) {
+  const [query, data] = await Promise.all([searchParams, getSettingsData()]); const zones = supportedIanaTimeZones();
+  return <div className="mx-auto max-w-4xl space-y-7"><header><p className="text-sm font-semibold text-primary">LifeStack preferences</p><h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">Settings</h1><p className="mt-2 text-sm text-muted-foreground">Manage the defaults LifeStack uses across your modules.</p></header>
+    {query.success ? <p className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success" role="status">{query.success}</p> : null}{query.error ? <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{query.error}</p> : null}
+
+    <section className={panel} id="general" aria-labelledby="general-heading"><div className="flex items-center gap-3"><Settings2 className="size-6 text-primary"/><div><h2 className="text-xl font-bold" id="general-heading">General</h2><p className="text-sm text-muted-foreground">Defaults and local-date context shared across LifeStack.</p></div></div><form action={saveGeneralPreferences} className="mt-5 grid gap-4 sm:grid-cols-2">
+      <label className="grid gap-1.5 text-sm font-semibold">Default currency<input className={input} defaultValue={data.currency} maxLength={3} name="currency" pattern="[A-Za-z]{3}" required aria-describedby="currency-help"/></label>
+      <label className="grid gap-1.5 text-sm font-semibold">Week starts on<select className={input} defaultValue={String(data.weekStartsOn)} name="weekStartsOn">{days.map((day, index) => <option key={day} value={index}>{day}</option>)}</select></label>
+      <p className="text-xs leading-5 text-muted-foreground sm:col-span-2" id="currency-help">The currency default is used for new supported records. Existing accounts, transactions, budgets, schedules, and Goal units are not converted or rewritten.</p>
+      <label className="grid gap-1.5 text-sm font-semibold sm:col-span-2">Timezone<input className={input} defaultValue={data.timeZone} list="iana-timezones" maxLength={100} name="timeZone" required aria-describedby="timezone-help"/><datalist id="iana-timezones">{zones.map((zone) => <option key={zone} value={zone}/>)}</datalist></label>
+      <p className="text-xs leading-5 text-muted-foreground sm:col-span-2" id="timezone-help">Existing timed records remain the same instant, but may display at a different local clock time. Date-only items stay date-only, and recurring series retain their stored timezone.</p>
+      <div className="sm:col-span-2"><SettingsSubmitButton>Save general preferences</SettingsSubmitButton></div>
+    </form></section>
+
+    <section className={panel} id="calendar" aria-labelledby="calendar-heading"><div className="flex items-center gap-3"><CalendarDays className="size-6 text-primary"/><div><h2 className="text-xl font-bold" id="calendar-heading">Calendar</h2><p className="text-sm text-muted-foreground">Choose the view used when Calendar opens without a view in its URL.</p></div></div><form action={saveCalendarPreference} className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end"><label className="grid flex-1 gap-1.5 text-sm font-semibold">Default view<select className={input} defaultValue={data.calendarDefaultView} name="defaultView"><option value="month">Month</option><option value="week">Week</option><option value="day">Day</option><option value="agenda">Agenda</option></select></label><SettingsSubmitButton>Save Calendar preference</SettingsSubmitButton></form><Link className="mt-4 inline-flex text-sm font-semibold text-primary" href="/calendar/settings">Manage archived Calendar events →</Link></section>
+
+    <section className={panel} id="assistant" aria-labelledby="assistant-heading"><div className="flex items-center gap-3"><Bot className="size-6 text-primary"/><div><h2 className="text-xl font-bold" id="assistant-heading">Assistant</h2><p className="text-sm text-muted-foreground">The current V1 Assistant behavior is application-controlled.</p></div></div><ul className="mt-4 space-y-2 text-sm leading-6 text-muted-foreground"><li>Conversations are ephemeral. Refreshing or starting a new chat clears the conversation.</li><li>LifeStack exposes only bounded authenticated tools; supported changes always require confirmation.</li><li>The Assistant receives your current profile timezone for local-date context.</li></ul><Link className="mt-4 inline-flex text-sm font-semibold text-primary" href="/assistant">Open Assistant →</Link></section>
+
+    <section className={panel} id="account" aria-labelledby="account-heading"><div className="flex items-center gap-3"><CircleUserRound className="size-6 text-primary"/><div><h2 className="text-xl font-bold" id="account-heading">Account & data</h2><p className="text-sm text-muted-foreground">Safe account information and current profile defaults.</p></div></div><dl className="mt-5 grid gap-4 sm:grid-cols-2"><div><dt className="text-xs font-bold uppercase text-muted-foreground">Email</dt><dd className="mt-1 break-all font-semibold">{data.email ?? "Unavailable"}</dd></div><div><dt className="text-xs font-bold uppercase text-muted-foreground">Member since</dt><dd className="mt-1 font-semibold">{new Intl.DateTimeFormat("en-CA", { dateStyle: "medium" }).format(new Date(data.createdAt))}</dd></div><div><dt className="text-xs font-bold uppercase text-muted-foreground">Default currency</dt><dd className="mt-1 font-semibold">{data.currency}</dd></div><div><dt className="text-xs font-bold uppercase text-muted-foreground">Timezone</dt><dd className="mt-1 break-words font-semibold">{data.timeZone}</dd></div></dl><div className="mt-5 flex gap-3 rounded-xl border border-dashed p-4 text-sm text-muted-foreground"><Database className="mt-0.5 size-5 shrink-0"/><p>Email changes, password management, account deletion, and full data export are not part of LifeStack V1 Settings.</p></div></section>
+  </div>;
 }

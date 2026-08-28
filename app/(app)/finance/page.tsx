@@ -8,6 +8,7 @@ import { AccountForm, BillForm, CategoryForm, IncomeForm, RecurringAccountForm, 
 import { addMoney, formatMoney } from "@/features/finance/money";
 import { getCashFlowForecast } from "@/features/finance/planning-queries";
 import { getFinanceOverview } from "@/features/finance/queries";
+import { getAuthenticatedAppContext } from "@/features/shared/server-context";
 
 export const metadata: Metadata = { title: "Finance" };
 export const dynamic = "force-dynamic";
@@ -22,13 +23,14 @@ function titleCase(value: string) {
 
 export default async function FinancePage({ searchParams }: { searchParams: Promise<{ error?: string; success?: string }> }) {
   const notice = await searchParams;
-  const [data, analytics, planning] = await Promise.all([getFinanceOverview(), getFinanceAnalytics(), getCashFlowForecast("30")]);
+  const context = await getAuthenticatedAppContext();
+  const [data, analytics, planning] = await Promise.all([getFinanceOverview(context), getFinanceAnalytics(undefined, context), getCashFlowForecast("30", undefined, context)]);
   const activeAccounts = data.accounts.filter((account) => !account.archivedAt);
   const totals = new Map<string, bigint>();
   for (const account of activeAccounts.filter((item) => item.includeInNetWorth)) {
     totals.set(account.currency, addMoney([totals.get(account.currency) ?? BigInt(0), account.currentBalance]));
   }
-  const today = new Date().toISOString().slice(0, 10);
+  const today = context.today; const defaultCurrency = context.profile.currency;
   const hasData = data.accounts.length > 0;
 
   return <div className="space-y-8">
@@ -60,7 +62,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
 
     <section className="space-y-4" id="accounts"><div><h2 className="text-xl font-bold">Accounts</h2><p className="text-sm text-muted-foreground">Archived accounts keep their full history and derived balance.</p></div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{data.accounts.map((account) => <article className={`${panel} ${account.archivedAt ? "opacity-65" : ""}`} key={account.id}><div className="flex items-start justify-between gap-3"><div><h3 className="font-bold">{account.name}</h3><p className="text-xs text-muted-foreground">{titleCase(account.accountType)} · {account.currency}{account.archivedAt ? " · Archived" : ""}</p></div><WalletCards className="size-5 text-primary" /></div><p className={`mt-5 text-2xl font-bold ${account.currentBalance.startsWith("-") ? "text-financial-negative" : ""}`}>{formatMoney(account.currentBalance, account.currency)}</p><p className="mt-1 text-xs text-muted-foreground">Derived since {account.openingBalanceDate}</p>{!account.archivedAt ? <form action={archiveAccount} className="mt-4"><input type="hidden" name="id" value={account.id} /><button className="text-xs font-semibold text-muted-foreground hover:text-destructive">Archive account</button></form> : null}</article>)}</div>
-      <details className={detail} open={!hasData}><summary className={summary}><span className="flex items-center gap-2"><Plus className="size-4" /> Add account</span><span className="text-muted-foreground group-open:rotate-45">+</span></summary><div className="border-t border-border p-4"><AccountForm today={today} /></div></details>
+      <details className={detail} open={!hasData}><summary className={summary}><span className="flex items-center gap-2"><Plus className="size-4" /> Add account</span><span className="text-muted-foreground group-open:rotate-45">+</span></summary><div className="border-t border-border p-4"><AccountForm defaultCurrency={defaultCurrency} today={today} /></div></details>
       <details className={detail}><summary className={summary}>Create a custom category <span className="text-muted-foreground group-open:rotate-45">+</span></summary><div className="border-t border-border p-4"><CategoryForm /></div></details>
     </section>
 
@@ -70,7 +72,7 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
     </section>
 
     <section className="space-y-4" id="recurring"><div><h2 className="text-xl font-bold">Recurring schedule</h2><p className="text-sm text-muted-foreground">These are authoritative templates only; they do not create future ledger rows.</p></div>
-      <div className="grid gap-3 lg:grid-cols-2"><details className={detail}><summary className={summary}>Add recurring bill <span>+</span></summary><div className="border-t border-border p-4"><BillForm accounts={data.accounts} categories={data.categories} today={today} /></div></details><details className={detail}><summary className={summary}>Add recurring income <span>+</span></summary><div className="border-t border-border p-4"><IncomeForm accounts={data.accounts} categories={data.categories} today={today} /></div></details></div>
+      <div className="grid gap-3 lg:grid-cols-2"><details className={detail}><summary className={summary}>Add recurring bill <span>+</span></summary><div className="border-t border-border p-4"><BillForm accounts={data.accounts} categories={data.categories} defaultCurrency={defaultCurrency} today={today} /></div></details><details className={detail}><summary className={summary}>Add recurring income <span>+</span></summary><div className="border-t border-border p-4"><IncomeForm accounts={data.accounts} categories={data.categories} defaultCurrency={defaultCurrency} today={today} /></div></details></div>
       <div className="grid gap-4 lg:grid-cols-2"><div className={panel}><h3 className="font-bold">Bills</h3><div className="mt-3 divide-y divide-border">{data.bills.length ? data.bills.map((bill) => <div className="py-3" key={bill.id}><div className="flex items-center gap-3"><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{bill.name}</p><p className="text-xs text-muted-foreground">{bill.next_due_date} · {titleCase(bill.frequency)} · {bill.accountName}</p></div><p className="text-sm font-bold">{formatMoney(bill.expected_amount, bill.currency)}</p><form action={setBillActive}><input type="hidden" name="id" value={bill.id} /><input type="hidden" name="active" value={String(!bill.is_active)} /><button className="text-xs font-semibold text-primary">{bill.is_active ? "Pause" : "Resume"}</button></form></div><RecurringAccountForm accounts={data.accounts} currency={bill.currency} currentAccountId={bill.account_id} sourceId={bill.id} sourceType="bill" /></div>) : <p className="py-4 text-sm text-muted-foreground">No recurring bills.</p>}</div></div><div className={panel}><h3 className="font-bold">Income & paydays</h3><div className="mt-3 divide-y divide-border">{data.income.length ? data.income.map((item) => <div className="py-3" key={item.id}><div className="flex items-center gap-3"><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{item.name}</p><p className="text-xs text-muted-foreground">{item.next_payday} · {titleCase(item.frequency)} · {item.accountName}</p></div><p className="text-sm font-bold text-financial-positive">{formatMoney(item.expected_amount, item.currency)}</p><form action={setIncomeActive}><input type="hidden" name="id" value={item.id} /><input type="hidden" name="active" value={String(!item.is_active)} /><button className="text-xs font-semibold text-primary">{item.is_active ? "Pause" : "Resume"}</button></form></div><RecurringAccountForm accounts={data.accounts} currency={item.currency} currentAccountId={item.destination_account_id} sourceId={item.id} sourceType="income" /></div>) : <p className="py-4 text-sm text-muted-foreground">No recurring income.</p>}</div></div></div>
     </section>
   </div>;

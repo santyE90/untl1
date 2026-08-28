@@ -27,6 +27,14 @@ describe("Assistant streamed read-tool loop", () => {
     expect(result).toEqual([{ type: "status", phase: "thinking" }, { type: "delta", text: "Hello " }, { type: "delta", text: "there." }, { type: "done", references: [] }]);
   });
 
+  it("uses the current authenticated profile timezone and local date", async () => {
+    const create = vi.fn().mockResolvedValue(events(delta("Hello"), completed([], "Hello")));
+    const current = { user: { id: "user-a" }, timeZone: "Asia/Tokyo", today: "2026-08-29" } as AuthenticatedAppContext;
+    await collect(streamAssistant({ messages: [{ role: "user", content: "What day is it?" }], context: current, client: { create } as AssistantResponseClient }));
+    expect(create.mock.calls[0][0].instructions).toContain("current local date is 2026-08-29");
+    expect(create.mock.calls[0][0].instructions).toContain("IANA timezone is Asia/Tokyo");
+  });
+
   it("turns a mutation tool call into confirmation without executing a write", async () => {
     const confirmation = { token: "x".repeat(43), expiresAt: "2026-08-27T20:10:00.000Z", preview: { operation: "create_task", actionLabel: "Create task", subjectTitle: "Buy groceries", changes: [{ label: "Due", after: "2026-08-28" }] } };
     proposeMutation.mockResolvedValueOnce({ ok: true, confirmation });

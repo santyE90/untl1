@@ -1,6 +1,6 @@
 # LifeStack
 
-LifeStack is a responsive personal-management application built with Next.js 16 and Supabase. It includes authentication, Finance, a source-aware Calendar, deterministic academic planning, Tasks, measurable Goals, query-derived cross-module Analytics, and an authenticated Assistant with bounded reads and confirmation-gated Task, native Calendar, Goal, and School assessment changes.
+LifeStack is a responsive personal-management application built with Next.js 16 and Supabase. It includes authentication, Finance, a source-aware Calendar, deterministic academic planning, Tasks, measurable Goals, query-derived cross-module Analytics, centralized profile Settings, and an authenticated Assistant with bounded reads and confirmation-gated Task, native Calendar, Goal, and School assessment changes.
 
 [docs/project-architecture.md](docs/project-architecture.md) is the detailed source of truth for schema decisions, ledger semantics, security boundaries, and roadmap.
 
@@ -55,13 +55,13 @@ supabase/migrations/20260827000700_tasks_core.sql
 supabase/migrations/20260827000800_goals_core.sql
 ```
 
-Assistant Phase 7F and Analytics Phases 8A–8C have no schema changes and no pending migration. Before a future schema push, inspect the linked dry-run:
+Assistant Phase 7F, Analytics Phases 8A–8C, and Settings Phase 9 have no schema changes and no pending migration. Before a future schema push, inspect the linked dry-run:
 
 ```bash
 npm run db:push -- --dry-run
 ```
 
-After any future migration is applied, run `npm run db:types:linked`. No Supabase Dashboard changes are required for Phase 7F or Analytics Phases 8A–8C.
+After any future migration is applied, run `npm run db:types:linked`. No Supabase Dashboard changes are required for Phase 7F, Analytics Phases 8A–8C, or Settings Phase 9.
 
 ## Quality commands
 
@@ -116,7 +116,7 @@ docs/                durable architecture and project decisions
 
 ## Scope
 
-Implemented through Analytics Phase 8C:
+Implemented through Settings Phase 9:
 
 - signup, email confirmation, login/logout, protected sessions, and profiles;
 - responsive desktop/mobile application shell;
@@ -173,6 +173,8 @@ Implemented through Analytics Phase 8C:
 - exact currency-separated Finance trends, per-course School standings, Task completion trends, and per-Goal progress with deterministic empty states.
 - deep `/analytics/finance`, `/analytics/school`, `/analytics/tasks`, and `/analytics/goals` reports with shared preset/custom ranges;
 - exact previous-period Finance comparisons, monthly unprorated budget performance, assessment/workload reporting, Task lifecycle metrics, and current Goal health.
+- centralized default currency, IANA timezone, week-start, and Calendar default-view preferences with authenticated atomic updates;
+- read-only Assistant privacy and Account & Data information, with Calendar archive management retained in its authoritative route.
 
 Deferred until later approval: Task archive/delete/recurrence/batches; Calendar recurrence/reminders/archive/delete/occurrence edits; Goal archive/delete/milestones/batches/automatic cross-domain progress; all School writes except the four supported individual assessment operations; all Finance Assistant writes; persistent chat history/memory; recurring-task occurrence completion; intelligent scheduling; advanced analytics, exports, forecasting, and saved reports; notifications; external integrations; and Python/ML.
 

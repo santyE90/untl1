@@ -23,14 +23,14 @@ import { logout } from "@/features/auth/actions";
 import { cn } from "@/lib/utils";
 
 const navigationItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, ready: true },
-  { href: "/finance", label: "Finance", icon: WalletCards, ready: true },
-  { href: "/calendar", label: "Calendar", icon: CalendarDays, ready: true },
-  { href: "/school", label: "School", icon: GraduationCap, ready: true },
-  { href: "/tasks", label: "Tasks", icon: CheckSquare2, ready: true },
-  { href: "/goals", label: "Goals", icon: Target, ready: true },
-  { href: "/analytics", label: "Analytics", icon: BarChart3, ready: true },
-  { href: "/assistant", label: "AI Assistant", icon: Bot, ready: true },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/finance", label: "Finance", icon: WalletCards },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/school", label: "School", icon: GraduationCap },
+  { href: "/tasks", label: "Tasks", icon: CheckSquare2 },
+  { href: "/goals", label: "Goals", icon: Target },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/assistant", label: "AI Assistant", icon: Bot },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
@@ -58,9 +58,6 @@ function NavLink({ item, compact = false }: { item: (typeof navigationItems)[num
     >
       <Icon className={compact ? "size-5" : "size-4"} />
       <span>{item.label}</span>
-      {!compact && !("ready" in item && item.ready) ? (
-        <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-[0.625rem] font-medium text-muted-foreground">Soon</span>
-      ) : null}
     </Link>
   );
 }
@@ -109,7 +106,7 @@ export function MobileHeader({ displayName }: { displayName: string | null }) {
         <div className="absolute right-0 top-12 w-64 rounded-xl border bg-popover p-2 shadow-xl">
           <p className="px-3 py-2 text-sm font-medium">{displayName ?? "Your account"}</p>
           <div className="my-1 border-t" />
-          {navigationItems.slice(3, 8).map((item) => <NavLink item={item} key={item.href} />)}
+          {navigationItems.slice(3).map((item) => <NavLink item={item} key={item.href} />)}
           <form action={logout} className="mt-1 border-t pt-1">
             <Button className="w-full justify-start" type="submit" variant="ghost"><LogOut /> Sign out</Button>
           </form>
