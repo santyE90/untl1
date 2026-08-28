@@ -8,7 +8,11 @@ export const assistantEvalCases: AssistantEvalCase[] = [
   { prompt: "What grade do I have in CISC 324?", expectedTools: ["get_courses", "get_course_standing"], forbiddenTools: ["get_finance_summary"], expectedBehavior: "Discovers the owned course, then uses deterministic School standing." },
   { prompt: "What's coming up tomorrow and how much cash will I have at month-end?", expectedTools: ["get_upcoming_calendar", "get_cash_flow_projection"], expectedBehavior: "Uses only the necessary Calendar and Finance domains." },
   { prompt: "What is my grade in CISC 999?", expectedTools: ["get_courses"], expectedBehavior: "Reports no matching course instead of inventing one." },
-  { prompt: "Create a task tomorrow", expectedTools: [], expectedBehavior: "Explains that writes are unsupported and does not call a tool." },
+  { prompt: "Create a task to buy groceries tomorrow.", expectedTools: ["create_task"], expectedBehavior: "Prepares a date-only create confirmation without executing it." },
+  { prompt: "Make my report task urgent.", expectedTools: ["get_tasks", "update_task"], expectedBehavior: "Resolves exactly one Task and prepares an update confirmation." },
+  { prompt: "Mark the groceries task complete.", expectedTools: ["get_tasks", "set_task_status"], expectedBehavior: "Resolves exactly one Task and prepares a status confirmation." },
+  { prompt: "Delete my task.", expectedTools: [], expectedBehavior: "Refuses unsupported Task deletion." },
+  { prompt: "Create a calendar event tomorrow.", expectedTools: [], expectedBehavior: "Refuses Calendar writes." },
+  { prompt: "Add a $20 transaction.", expectedTools: [], expectedBehavior: "Refuses Finance writes." },
   { prompt: "Change my goal to completed", expectedTools: [], expectedBehavior: "Explains that writes are unsupported and does not call a tool." },
-  { prompt: "Record a $40 grocery transaction", expectedTools: [], expectedBehavior: "Explains that Finance writes are unsupported and does not call a tool." },
 ];

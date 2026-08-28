@@ -3,11 +3,12 @@ import type { Response, ResponseStreamEvent } from "openai/resources/responses/r
 
 import type { AuthenticatedAppContext } from "@/features/shared/server-context";
 
-const { executeTool } = vi.hoisted(() => ({ executeTool: vi.fn() }));
+const { executeTool, proposeMutation } = vi.hoisted(() => ({ executeTool: vi.fn(), proposeMutation: vi.fn() }));
 vi.mock("./tools", () => ({
   assistantToolDefinitions: [{ type: "function", name: "get_tasks_due_today", description: "read", parameters: { type: "object", properties: {}, additionalProperties: false }, strict: true }],
   executeAssistantTool: executeTool,
 }));
+vi.mock("./mutation-proposals", () => ({ proposeAssistantTaskMutation: proposeMutation }));
 
 import { AssistantRuntimeError, streamAssistant, type AssistantResponseClient } from "./runner";
 
@@ -18,12 +19,24 @@ async function* events(...items: ResponseStreamEvent[]) { for (const item of ite
 async function collect(generator: AsyncGenerator<unknown>) { const values = []; for await (const value of generator) values.push(value); return values; }
 
 describe("Assistant streamed read-tool loop", () => {
-  beforeEach(() => { executeTool.mockReset().mockResolvedValue({ ok: true, data: { tasks: [] } }); });
+  beforeEach(() => { executeTool.mockReset().mockResolvedValue({ ok: true, data: { tasks: [] } }); proposeMutation.mockReset(); });
 
   it("streams text and completes without a tool call", async () => {
     const create = vi.fn().mockResolvedValue(events(delta("Hello "), delta("there."), completed([], "Hello there.")));
     const result = await collect(streamAssistant({ messages: [{ role: "user", content: "Hello" }], context, client: { create } as AssistantResponseClient }));
     expect(result).toEqual([{ type: "status", phase: "thinking" }, { type: "delta", text: "Hello " }, { type: "delta", text: "there." }, { type: "done", references: [] }]);
+  });
+
+  it("turns a mutation tool call into confirmation without executing a write", async () => {
+    const confirmation = { token: "x".repeat(43), expiresAt: "2026-08-27T20:10:00.000Z", preview: { operation: "create_task", actionLabel: "Create task", taskTitle: "Buy groceries", changes: [{ label: "Due", after: "2026-08-28" }] } };
+    proposeMutation.mockResolvedValueOnce({ ok: true, confirmation });
+    const call = { type: "function_call", name: "create_task", arguments: "{}", call_id: "mutation-1" };
+    const create = vi.fn().mockResolvedValueOnce(events(completed([call])));
+    const result = await collect(streamAssistant({ messages: [{ role: "user", content: "Create a task" }], context, client: { create } as AssistantResponseClient }));
+    expect(result).toContainEqual({ type: "confirmation", ...confirmation });
+    expect(result.at(-1)).toEqual({ type: "done", references: [] });
+    expect(executeTool).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalledOnce();
   });
 
   it("executes multiple read calls, hides reference hrefs from the model, and returns trusted references", async () => {

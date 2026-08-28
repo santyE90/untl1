@@ -1,10 +1,10 @@
 # LifeStack: Project Architecture
 
-Status: Finance through Phase 2C, Calendar through Phase 3B, School through Phase 4B, Tasks Phase 5A, Goals Phase 5B, Phase 6, and Assistant Phase 7A accepted; Assistant Phase 7B implemented locally
+Status: Finance through Phase 2C, Calendar through Phase 3B, School through Phase 4B, Tasks Phase 5A, Goals Phase 5B, Phase 6, and Assistant Phases 7A–7B accepted; Assistant Phase 7C implemented locally
 
 Last reviewed: 2026-08-27
 
-Current boundary: Complete the read-only Assistant Phase 7B reliability and UX milestone only. Do not add Assistant mutations, persistence/memory, advanced analytics, habit tracking, recurring Tasks, intelligent scheduling, external integrations, notification delivery, Python, or ML until a later milestone is approved.
+Current boundary: Complete Assistant Phase 7C Task mutations only. Do not add archive/delete, recurrence, batch changes, Calendar, Goal, School, or Finance mutations, persistence/memory, intelligent scheduling, external integrations, Python, or ML.
 
 This is the durable architectural source of truth for LifeStack. It records decisions that future implementation sessions must preserve.
 
@@ -216,7 +216,8 @@ Docker is optional for application development but required by the local Supabas
 - Phase 5B: Goals, milestones, Task links, and Calendar integration - accepted.
 - Phase 6: cross-module service consolidation and Assistant readiness - accepted.
 - Phase 7A: authenticated read-only Assistant with bounded LifeStack tools - accepted.
-- Phase 7B: streaming reliability, trusted references, safeguards, and evaluation coverage - implemented locally, awaiting browser acceptance.
+- Phase 7B: streaming reliability, trusted references, safeguards, and evaluation coverage - accepted.
+- Phase 7C: confirmation-gated individual Task mutations - implemented locally, awaiting browser acceptance.
 - Future Finance: mark-paid reconciliation workflow, recurrence advancement, discretionary estimation, import/reconciliation, and richer planning - blocked pending review.
 - Later: School import/enrichment, recurring Tasks, notifications, controlled AI, integrations/data science.
 
@@ -726,3 +727,25 @@ Conversation retention remains intentionally ephemeral. State exists only in the
 Deterministic tests cover streamed completion and tool continuation, provider failure before/mid-stream, cancellation, malformed/incomplete streams, cleanup, throttling, trusted-route rejection, payload caps, missing/inaccessible entities, privacy-safe observation, malicious stored content, no `userId` inputs, and the absence of mutation tools. A representative evaluation catalog records selective expected tools for Today, School deadlines and standing, overdue Tasks, Finance bills, and cross-domain Calendar/cash-flow questions, plus missing-course and rejected write requests.
 
 Phase 7B remains fully read-only. It adds no migration, service-role access, arbitrary database access, mutation definition, confirmation flow, persistent chat, or new data domain. A future Phase 7C should begin with a very small mutation surface built on extracted authenticated domain mutation services and explicit preview/confirmation; none is implemented here.
+
+## 21. Assistant Phase 7C: confirmed Task mutations
+
+Phase 7C adds exactly three model-visible proposal functions: `create_task`, `update_task`, and `set_task_status`. The 14 read tools remain separate in the read registry. No archive, delete, recurrence, batch, Calendar, Goal, School, or Finance write definition exists. A proposal function is not a database tool: the streamed model loop validates its arguments and stops with a structured confirmation event without writing.
+
+### 21.1 Shared Task mutation services
+
+`features/tasks/mutations.ts` owns create, full-field update, and status transition operations. Both existing form Server Actions and Assistant confirmation call these services. They reuse Task Zod rules, convert local wall time through the authenticated profile timezone, retain PostgreSQL date semantics for date-only Tasks, validate Goal and Assessment relationships through the ordinary RLS-bound client, derive ownership from `AuthenticatedAppContext`, and return `ServiceResult`. The database lifecycle trigger remains authoritative for `completed_at`.
+
+Assistant updates and status changes carry the proposal-time `updated_at` as an internal optimistic precondition. A changed or archived Task produces a safe conflict or not-found result instead of applying a stale proposal. IDs supplied by the model are searched only within the authenticated user's active Task results and are never authorization.
+
+### 21.2 Opaque confirmation protocol
+
+Successful validation stores the exact normalized operation and arguments in a bounded process-local pending-action registry and returns a cryptographically random opaque token, ten-minute expiry, and sanitized preview. The token contains no arguments or user ID. It is bound server-side to the authenticated user. The browser sends only the token in distinct confirm/cancel requests dispatched by the authenticated Assistant endpoint and cannot edit approved arguments.
+
+Confirmation synchronously consumes the entry before awaiting the Task write, making it one-shot against double-click, retry, and replay. Failed execution is not automatically retried. Cancellation and New chat invalidate the entry; Stop affects only streaming and never confirms. Restart safely invalidates every proposal. Because storage is process-local, multi-instance routing may reject a valid token created elsewhere; production scale-out should replace it with a shared short-lived store rather than weaken integrity.
+
+### 21.3 UX, security, and operations
+
+The responsive card shows the action, Task title, and meaningful before/after fields with Confirm and Cancel. Composer sends are locked while a decision or execution is pending. Successful results include normalized Task fields and a validated Task reference. Existing Calendar projection and Dashboard queries observe the same Task row after route revalidation.
+
+Mutation observations record request/correlation ID, operation, proposed/confirmed/cancelled/succeeded/failed state, duration, and safe error class. They exclude messages, descriptions, titles, arguments, relationship content, credentials, and provider payloads. Stored Task text remains untrusted display data and cannot alter pending arguments, bypass confirmation, or enable tools. Conversation persistence remains deferred and no migration is introduced.

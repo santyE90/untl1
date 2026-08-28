@@ -8,6 +8,8 @@ import { assistantLimits } from "../limits";
 import type { AuthenticatedAppContext } from "@/features/shared/server-context";
 import { assistantConfig, getOpenAIApiKey } from "./config";
 import { assistantInstructions } from "./prompt";
+import { assistantMutationToolDefinitions, assistantMutationToolNames } from "./mutation-tools";
+import { proposeAssistantTaskMutation } from "./mutation-proposals";
 import { uniqueReferences } from "./references";
 import { assistantToolDefinitions, executeAssistantTool } from "./tools";
 
@@ -51,7 +53,8 @@ export async function* streamAssistant({ messages, context, signal, client, onTo
     while (true) {
       if (signal?.aborted) throw new AssistantRuntimeError("aborted", "Generation was stopped.");
       yield { type: "status", phase: "thinking" };
-      const stream = await responseClient.create({ model: assistantConfig.model, instructions: assistantInstructions, input, tools: assistantToolDefinitions, tool_choice: "auto", parallel_tool_calls: true, max_output_tokens: assistantConfig.maxOutputTokens, reasoning: { effort: assistantConfig.reasoningEffort }, store: false, stream: true }, { signal });
+      const instructions = `${assistantInstructions}\nTrusted temporal context: the user's current local date is ${context.today}, and their IANA timezone is ${context.timeZone}.`;
+      const stream = await responseClient.create({ model: assistantConfig.model, instructions, input, tools: [...assistantToolDefinitions, ...assistantMutationToolDefinitions], tool_choice: "auto", parallel_tool_calls: true, max_output_tokens: assistantConfig.maxOutputTokens, reasoning: { effort: assistantConfig.reasoningEffort }, store: false, stream: true }, { signal });
       let completed: Response | null = null;
       for await (const event of stream) {
         if (signal?.aborted) throw new AssistantRuntimeError("aborted", "Generation was stopped.");
@@ -67,10 +70,24 @@ export async function* streamAssistant({ messages, context, signal, client, onTo
         yield { type: "done", references: uniqueReferences(references, assistantLimits.maxReferences) };
         return;
       }
-      if (toolIterations >= assistantConfig.maxToolIterations || toolCalls + calls.length > assistantConfig.maxToolCalls) throw new AssistantRuntimeError("tool_limit", "The Assistant reached its read-tool safety limit. Try a narrower question.");
+      if (toolIterations >= assistantConfig.maxToolIterations || toolCalls + calls.length > assistantConfig.maxToolCalls) throw new AssistantRuntimeError("tool_limit", "The Assistant reached its tool safety limit. Try a narrower question.");
       toolIterations += 1;
       toolCalls += calls.length;
       yield { type: "status", phase: "using_tools" };
+      const mutationCalls = calls.filter((call) => assistantMutationToolNames.has(call.name));
+      if (mutationCalls.length) {
+        if (calls.length !== 1) throw new AssistantRuntimeError("malformed_response", "A Task change must be proposed separately from other tool calls.");
+        const call = mutationCalls[0];
+        onTool?.(call.name);
+        const proposal = await proposeAssistantTaskMutation(call.name, call.arguments, context);
+        if (proposal.ok) {
+          yield { type: "confirmation", ...proposal.confirmation };
+          yield { type: "done", references: [] };
+          return;
+        }
+        input = [...input, ...completed.output.filter(replayableOutput), { type: "function_call_output", call_id: call.call_id, output: JSON.stringify(proposal) }];
+        continue;
+      }
       const executions = await Promise.all(calls.map(async (call) => {
         onTool?.(call.name);
         const result = await executeAssistantTool(call.name, call.arguments, context);

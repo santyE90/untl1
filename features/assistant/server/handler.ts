@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import { assistantRequestSchema, type AssistantApiResponse, type AssistantStreamEvent } from "../contracts";
 import { getOptionalAuthenticatedAppContext, type AuthenticatedAppContext } from "@/features/shared/server-context";
-import { observeAssistantTurn, userCorrelation, type AssistantObservation } from "./observability";
+import { observeAssistantMutation, observeAssistantTurn, userCorrelation, type AssistantObservation } from "./observability";
 import { AssistantRuntimeError, streamAssistant } from "./runner";
 import { acquireAssistantRequest, type ThrottleDecision } from "./throttle";
 
@@ -60,7 +60,10 @@ export async function handleAssistantRequest(request: Request, dependencies: Dep
       try {
         controller.enqueue(encode({ type: "meta", requestId }));
         const run = dependencies.stream ?? streamAssistant;
-        for await (const event of run({ messages: parsed.data.messages, context, signal: abortController.signal, onTool: (name) => toolNames.push(name) })) controller.enqueue(encode(event));
+        for await (const event of run({ messages: parsed.data.messages, context, signal: abortController.signal, onTool: (name) => toolNames.push(name) })) {
+          if (event.type === "confirmation") observeAssistantMutation({ requestId, userCorrelation: correlation, operation: event.preview.operation, state: "proposed", durationMs: Date.now() - started });
+          controller.enqueue(encode(event));
+        }
       } catch (error) {
         outcome = abortController.signal.aborted ? "aborted" : runtimeOutcome(error);
         if (!abortController.signal.aborted) {

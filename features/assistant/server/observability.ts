@@ -20,3 +20,7 @@ export function userCorrelation(userId: string) {
 export function observeAssistantTurn(observation: Omit<AssistantObservation, "model">) {
   console.info("[LifeStack Assistant]", JSON.stringify({ ...observation, model: assistantConfig.model }));
 }
+
+export function observeAssistantMutation(observation: { requestId: string; userCorrelation: string; operation: string; state: "proposed" | "confirmed" | "cancelled" | "succeeded" | "failed"; durationMs: number; errorCode?: string }) {
+  console.info("[LifeStack Assistant mutation]", JSON.stringify(observation));
+}

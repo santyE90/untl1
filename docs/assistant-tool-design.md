@@ -1,6 +1,6 @@
 # LifeStack Assistant tool design
 
-Status: Phase 7B read-only streaming reliability layer implemented. The 14 read tools below are active; every mutation tool remains design-only and absent from the model registry. Assistant persistence does not exist.
+Status: Phase 7C confirmed Task mutations implemented. The 14 read tools remain active; only `create_task`, `update_task`, and `set_task_status` are model-visible proposal capabilities. Assistant persistence does not exist.
 
 ## Phase 7B runtime
 
@@ -10,7 +10,7 @@ Central safeguards are defined in `features/assistant/limits.ts`: 8,000 characte
 
 References never come from generated Markdown. Tool adapters derive them from owned records or trusted Calendar provider routes, validate them against an approved same-origin route allowlist, and return them separately in the completion event. Assistant text is rendered as escaped plain text. Logs contain only request/correlation IDs, model, tool names/count, duration, and outcome—not messages, tool payloads, private domain values, credentials, or provider details.
 
-Every general upcoming range is 1–90 days starting on the user's current local date. Cash-flow projection is limited to 7/30/60/90 days or current month-end. Tool results omit descriptions, notes, audit columns, and unrelated internal fields where they are unnecessary. There are no mutation, web, file, computer, SQL, or service-role tools.
+Every general upcoming range is 1–90 days starting on the user's current local date. Cash-flow projection is limited to 7/30/60/90 days or current month-end. Tool results omit descriptions, notes, audit columns, and unrelated internal fields where unnecessary. There are no directly executing model tools, web, file, computer, SQL, or service-role tools.
 
 ## Non-negotiable boundary
 
@@ -150,25 +150,27 @@ Reads require an intentional user request. Low-risk reversible writes require un
 - Result: Goal IDs, titles, date-only deadlines, categories, status, and exact progress summaries.
 - Errors: invalid range, unauthenticated session.
 
-## Proposed mutation tools
+## Confirmed Task mutation proposals
 
-These are not model-callable in Phase 7B. A later approved write-capable phase must first extract the applicable validated database operations from form Server Actions into authenticated domain mutation services returning `ServiceResult`; both form actions and future tool handlers would then call the same service.
+These three functions are model-callable in Phase 7C, but calls only create a validated ten-minute confirmation proposal. Exact arguments remain in a bounded process-local server registry behind an opaque random token. A distinct authenticated confirmation request on the Assistant endpoint consumes that token once and calls the shared Task mutation service. The model never executes the service directly.
 
 ### `create_task`
 
 - Purpose/arguments: create a Task from `title`, optional description, priority, due-date-or-instant shape, effort minutes, owned `assessmentId`, and owned `goalId`.
-- Ownership/service: session supplies owner; adapter over the validation and mutation currently used by `saveTask`.
-- Confirmation: clear user intent is sufficient for one Task; confirm ambiguous inferred dates, recurrence-like requests, or batches.
+- Ownership/service: `createTask` derives ownership from authenticated context and validates optional owned Goal and Assessment links.
+- Confirmation: always required; ambiguity is resolved before proposal. Recurrence and batches are refused.
 - Result: created Task ID and normalized fields.
 - Errors: validation, invalid date shape, inaccessible relationship ID, conflict, unexpected failure.
 
-### `update_task` / `complete_task`
+### `update_task` / `set_task_status`
 
 - Purpose/arguments: update explicitly supplied fields for `taskId`, or set completed/reopened state.
-- Ownership/service: owned ID revalidated; adapters over `saveTask` and `setTaskStatus` logic.
-- Confirmation: explicit intent; confirmation for broad/batch edits. Reopening is supported.
+- Ownership/service: the exact owned active Task ID is revalidated; shared `updateTask` and `setTaskStatus` services apply an `updated_at` stale-write precondition. The database trigger owns completion timestamps.
+- Confirmation: always required. Todo, In progress, Completed, and reopen-to-Todo are supported; ambiguous duplicate titles produce no proposal.
 - Result: updated Task ID, status, completion timestamp, and changed fields.
 - Errors: validation, inaccessible/not-found Task, invalid relationship, conflict.
+
+## Future mutation designs — unavailable
 
 ### `create_goal` / `update_goal`
 

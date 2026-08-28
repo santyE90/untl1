@@ -1,6 +1,6 @@
 # LifeStack
 
-LifeStack is a responsive personal-management application built with Next.js 16 and Supabase. It includes authentication, Finance, a source-aware Calendar, deterministic academic planning, Tasks, measurable Goals, and an authenticated read-only AI Assistant.
+LifeStack is a responsive personal-management application built with Next.js 16 and Supabase. It includes authentication, Finance, a source-aware Calendar, deterministic academic planning, Tasks, measurable Goals, and an authenticated Assistant with bounded reads and confirmation-gated Task changes.
 
 [docs/project-architecture.md](docs/project-architecture.md) is the detailed source of truth for schema decisions, ledger semantics, security boundaries, and roadmap.
 
@@ -11,7 +11,7 @@ LifeStack is a responsive personal-management application built with Next.js 16 
 - Supabase Auth and PostgreSQL with RLS
 - Zod, Vitest, Supabase migrations, and pgTAP tests
 
-Assistant Phase 7B streams server-side OpenAI responses through bounded read-only LifeStack tools and renders trusted internal record references separately from model text. It cannot modify data and does not persist conversations; see [docs/assistant-tool-design.md](docs/assistant-tool-design.md).
+Assistant Phase 7C preserves 14 bounded reads and adds confirmation-gated creation, editing, and status changes for individual Tasks only. Model calls create proposals; a separate authenticated one-shot confirmation executes through shared Task services. Conversations are not persisted; see [docs/assistant-tool-design.md](docs/assistant-tool-design.md).
 
 ## Local setup
 
@@ -55,13 +55,13 @@ supabase/migrations/20260827000700_tasks_core.sql
 supabase/migrations/20260827000800_goals_core.sql
 ```
 
-Assistant Phase 7B has no schema changes and no pending migration. Before a future schema push, inspect the linked dry-run:
+Assistant Phase 7C has no schema changes and no pending migration. Before a future schema push, inspect the linked dry-run:
 
 ```bash
 npm run db:push -- --dry-run
 ```
 
-After any future migration is applied, run `npm run db:types:linked`. No Supabase Dashboard changes are required for Phase 7B.
+After any future migration is applied, run `npm run db:types:linked`. No Supabase Dashboard changes are required for Phase 7C.
 
 ## Quality commands
 
@@ -116,7 +116,7 @@ docs/                durable architecture and project decisions
 
 ## Scope
 
-Implemented through Assistant Phase 7B:
+Implemented through Assistant Phase 7C:
 
 - signup, email confirmation, login/logout, protected sessions, and profiles;
 - responsive desktop/mobile application shell;
@@ -154,12 +154,14 @@ Implemented through Assistant Phase 7B:
 - one request-scoped authenticated context and profile-timezone boundary;
 - shared local-date ranges, low-level exact-decimal primitives, and lightweight service results;
 - reusable cross-module Today/Upcoming and concise Dashboard aggregation;
-- authenticated read-only Assistant chat backed by a server-only OpenAI request boundary;
+- authenticated Assistant chat backed by a server-only OpenAI request boundary;
 - 14 bounded tools spanning Today, Calendar, Finance, School, Tasks, and Goals;
 - defensive tool iteration/call limits, strict inputs, concise structured results, and untrusted-data instructions;
 - session-local conversation state with no Assistant database tables or memory.
 - streamed answer/tool-continuation events with stop, retry, New chat, and restrained auto-scroll UX;
 - trusted same-origin LifeStack reference chips, centralized cost limits, payload truncation metadata, lightweight per-user throttling, and privacy-safe execution summaries;
 - deterministic Assistant stream/security tests and a selective read-tool evaluation catalog.
+- confirmation-gated `create_task`, `update_task`, and `set_task_status` proposals using shared authenticated Task mutation services;
+- opaque ten-minute, user-bound, one-shot confirmation tokens with cancel/New chat invalidation and stale-update protection.
 
-Deferred until later approval: Assistant mutations and confirmation UI, persistent chat history/memory, recurring-task occurrence completion, Finance/School-derived Goal progress, intelligent scheduling, Goal/Task analytics, habit tracking, notifications, external integrations, and Python/ML.
+Deferred until later approval: Task archive/delete/recurrence/batches; Calendar, Goal, School, and Finance Assistant writes; persistent chat history/memory; recurring-task occurrence completion; intelligent scheduling; analytics; notifications; external integrations; and Python/ML.

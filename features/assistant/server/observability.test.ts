@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { observeAssistantTurn, userCorrelation } from "./observability";
+import { observeAssistantMutation, observeAssistantTurn, userCorrelation } from "./observability";
 
 describe("Assistant privacy-safe observability", () => {
   it("uses a stable non-reversible-looking correlation instead of the user ID", () => {
@@ -16,6 +16,16 @@ describe("Assistant privacy-safe observability", () => {
     expect(serialized).toContain("get_tasks_due_today");
     expect(serialized).not.toContain("private-user-id");
     expect(serialized).not.toMatch(/message|toolResult|apiKey|token/i);
+    info.mockRestore();
+  });
+
+  it("records mutation lifecycle metadata without Task content", () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    observeAssistantMutation({ requestId: "request", userCorrelation: "abcdef123456", operation: "create_task", state: "succeeded", durationMs: 20 });
+    const serialized = info.mock.calls.flat().join(" ");
+    expect(serialized).toContain("create_task");
+    expect(serialized).toContain("succeeded");
+    expect(serialized).not.toMatch(/title|description|arguments|message|Buy groceries/i);
     info.mockRestore();
   });
 });

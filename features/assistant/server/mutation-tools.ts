@@ -1,0 +1,15 @@
+import "server-only";
+
+import type { FunctionTool } from "openai/resources/responses/responses";
+
+const object = (properties: Record<string, unknown>, required: string[] = []) => ({ type: "object", properties, required, additionalProperties: false });
+const nullable = (type: string) => ({ type: [type, "null"] });
+const nullableId = { type: ["string", "null"], format: "uuid" };
+
+export const assistantMutationToolDefinitions: FunctionTool[] = [
+  { type: "function", name: "create_task", description: "PROPOSAL ONLY. Prepare one Task for explicit user confirmation. This never writes immediately.", strict: true, parameters: object({ title: { type: "string" }, description: nullable("string"), priority: { type: ["string", "null"], enum: ["low", "medium", "high", "urgent", null] }, dueDate: nullable("string"), dueLocal: nullable("string"), estimatedEffortMinutes: nullable("number"), assessmentId: nullableId, goalId: nullableId }, ["title", "description", "priority", "dueDate", "dueLocal", "estimatedEffortMinutes", "assessmentId", "goalId"]) },
+  { type: "function", name: "update_task", description: "PROPOSAL ONLY. Prepare changes to exactly one Task ID returned by a read tool. Omit unchanged fields. This never writes immediately.", strict: false, parameters: object({ taskId: { type: "string", format: "uuid" }, title: { type: "string" }, description: { type: ["string", "null"] }, priority: { type: "string", enum: ["low", "medium", "high", "urgent"] }, dueKind: { type: "string", enum: ["none", "date", "timed"] }, dueDate: { type: "string" }, dueLocal: { type: "string" }, estimatedEffortMinutes: { type: ["integer", "null"] }, assessmentId: nullableId, goalId: nullableId }, ["taskId"]) },
+  { type: "function", name: "set_task_status", description: "PROPOSAL ONLY. Prepare a Todo, In progress, Completed, or reopen-to-Todo transition for exactly one owned Task. This never writes immediately.", strict: true, parameters: object({ taskId: { type: "string", format: "uuid" }, status: { type: "string", enum: ["todo", "in_progress", "completed"] } }, ["taskId", "status"]) },
+];
+
+export const assistantMutationToolNames = new Set(assistantMutationToolDefinitions.map((tool) => tool.name));

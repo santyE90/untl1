@@ -1,0 +1,41 @@
+import { z } from "zod";
+
+export const assistantMutationNameSchema = z.enum(["create_task", "update_task", "set_task_status"]);
+export type AssistantMutationName = z.infer<typeof assistantMutationNameSchema>;
+
+const nullableId = z.string().uuid().nullable();
+export const createTaskProposalSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  description: z.string().max(10000).nullable(),
+  priority: z.enum(["low", "medium", "high", "urgent"]).nullable(),
+  dueDate: z.string().nullable(),
+  dueLocal: z.string().nullable(),
+  estimatedEffortMinutes: z.number().int().min(1).max(100000).nullable(),
+  assessmentId: nullableId,
+  goalId: nullableId,
+}).strict().superRefine((value, context) => {
+  if (value.dueDate && value.dueLocal) context.addIssue({ code: "custom", message: "Use a date or a local date/time, not both." });
+});
+
+export const updateTaskProposalSchema = z.object({
+  taskId: z.string().uuid(),
+  title: z.string().trim().min(1).max(200).optional(),
+  description: z.string().max(10000).nullable().optional(),
+  priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+  dueKind: z.enum(["none", "date", "timed"]).optional(),
+  dueDate: z.string().optional(),
+  dueLocal: z.string().optional(),
+  estimatedEffortMinutes: z.number().int().min(1).max(100000).nullable().optional(),
+  assessmentId: nullableId.optional(),
+  goalId: nullableId.optional(),
+}).strict().superRefine((value, context) => {
+  if (Object.keys(value).length === 1) context.addIssue({ code: "custom", message: "At least one Task field must change." });
+  if (value.dueKind === "date" && !value.dueDate) context.addIssue({ code: "custom", message: "A date is required for a date-only Task." });
+  if (value.dueKind === "timed" && !value.dueLocal) context.addIssue({ code: "custom", message: "A local date and time are required for a timed Task." });
+  if (value.dueKind === undefined && (value.dueDate || value.dueLocal)) context.addIssue({ code: "custom", message: "dueKind is required when changing a due date." });
+});
+
+export const setTaskStatusProposalSchema = z.object({ taskId: z.string().uuid(), status: z.enum(["todo", "in_progress", "completed"]) }).strict();
+
+export const assistantConfirmationRequestSchema = z.object({ token: z.string().min(32).max(160) }).strict();
+export type AssistantMutationPreview = { operation: AssistantMutationName; actionLabel: string; taskTitle: string; changes: { label: string; before?: string; after: string }[] };
