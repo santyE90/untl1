@@ -18,10 +18,6 @@ export default function Home() {
           <BrandMark className="size-9 rounded-lg" />
           <span className="font-semibold tracking-tight">LifeStack</span>
         </Link>
-        <div className="flex items-center gap-2">
-          <Button render={<Link href="/login">Sign in</Link>} variant="ghost" />
-          <Button render={<Link href="/signup">Get started</Link>} />
-        </div>
       </header>
 
       <section className="relative mx-auto grid w-full max-w-6xl gap-14 px-5 pb-20 pt-14 sm:px-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:py-24">

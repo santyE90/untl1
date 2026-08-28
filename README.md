@@ -1,6 +1,6 @@
 # LifeStack
 
-LifeStack is a responsive personal-management application built with Next.js 16 and Supabase. It includes authentication, Finance, a source-aware Calendar, deterministic academic planning, Tasks, measurable Goals, and an authenticated Assistant with bounded reads and confirmation-gated Task, native Calendar, and Goal changes.
+LifeStack is a responsive personal-management application built with Next.js 16 and Supabase. It includes authentication, Finance, a source-aware Calendar, deterministic academic planning, Tasks, measurable Goals, and an authenticated Assistant with bounded reads and confirmation-gated Task, native Calendar, Goal, and School assessment changes.
 
 [docs/project-architecture.md](docs/project-architecture.md) is the detailed source of truth for schema decisions, ledger semantics, security boundaries, and roadmap.
 
@@ -116,7 +116,7 @@ docs/                durable architecture and project decisions
 
 ## Scope
 
-Implemented through Assistant Phase 7F:
+Implemented through the completed LifeStack Phase 7:
 
 - signup, email confirmation, login/logout, protected sessions, and profiles;
 - responsive desktop/mobile application shell;
@@ -155,7 +155,7 @@ Implemented through Assistant Phase 7F:
 - shared local-date ranges, low-level exact-decimal primitives, and lightweight service results;
 - reusable cross-module Today/Upcoming and concise Dashboard aggregation;
 - authenticated Assistant chat backed by a server-only OpenAI request boundary;
-- 14 bounded tools spanning Today, Calendar, Finance, School, Tasks, and Goals;
+- 15 bounded authenticated read tools spanning Today, Calendar, Finance, School, Tasks, and Goals;
 - defensive tool iteration/call limits, strict inputs, concise structured results, and untrusted-data instructions;
 - session-local conversation state with no Assistant database tables or memory.
 - streamed answer/tool-continuation events with stop, retry, New chat, and restrained auto-scroll UX;
@@ -167,5 +167,9 @@ Implemented through Assistant Phase 7F:
 - trusted Calendar previews/references, profile-timezone conversion, projected-source rejection, and optimistic Calendar update protection.
 - confirmation-gated `create_goal`, `update_goal`, `set_goal_status`, and `update_goal_progress` proposals using shared authenticated Goal services;
 - exact decimal-string Goal progress, independent lifecycle semantics, trusted Goal references, and optimistic Goal update protection.
+- confirmation-gated `update_assessment`, `set_assessment_score`, `clear_assessment_score`, and `set_assessment_status` proposals using shared authenticated School services;
+- exact School score handling, hypothetical-versus-actual safeguards, trusted assessment references, and optimistic School update protection.
 
 Deferred until later approval: Task archive/delete/recurrence/batches; Calendar recurrence/reminders/archive/delete/occurrence edits; Goal archive/delete/milestones/batches/automatic cross-domain progress; all School writes except the four supported individual assessment operations; all Finance Assistant writes; persistent chat history/memory; recurring-task occurrence completion; intelligent scheduling; analytics; notifications; external integrations; and Python/ML.
+
+Phase 7 is complete for LifeStack V1. Finance reads are intentionally available while Finance writes are deliberately excluded. Assistant conversations, throttling, and pending confirmations remain ephemeral/process-local: restart safely invalidates proposals, and multi-instance routing may reject a token created on another instance. Shared short-lived confirmation storage and distributed throttling are future deployment-hardening options.

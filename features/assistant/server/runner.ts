@@ -56,16 +56,18 @@ export async function* streamAssistant({ messages, context, signal, client, onTo
       const instructions = `${assistantInstructions}\nTrusted temporal context: the user's current local date is ${context.today}, and their IANA timezone is ${context.timeZone}.`;
       const stream = await responseClient.create({ model: assistantConfig.model, instructions, input, tools: [...assistantToolDefinitions, ...assistantMutationToolDefinitions], tool_choice: "auto", parallel_tool_calls: true, max_output_tokens: assistantConfig.maxOutputTokens, reasoning: { effort: assistantConfig.reasoningEffort }, store: false, stream: true }, { signal });
       let completed: Response | null = null;
+      const turnText: string[] = [];
       for await (const event of stream) {
         if (signal?.aborted) throw new AssistantRuntimeError("aborted", "Generation was stopped.");
-        if (event.type === "response.output_text.delta") { emittedText = true; yield { type: "delta", text: event.delta }; }
+        if (event.type === "response.output_text.delta") turnText.push(event.delta);
         else if (event.type === "response.completed") completed = event.response;
         else if (event.type === "response.failed" || event.type === "error") throw new AssistantRuntimeError(event.type === "error" && event.code === "rate_limit_exceeded" ? "rate_limit" : "provider", "The AI service is currently unavailable. Your LifeStack data was not changed.");
       }
       if (!completed) throw new AssistantRuntimeError("malformed_response", "The Assistant stream ended before completion.");
       const calls = completed.output.filter((item) => item.type === "function_call");
       if (!calls.length) {
-        if (!emittedText && completed.output_text.trim()) { emittedText = true; yield { type: "delta", text: completed.output_text }; }
+        if (turnText.length) { emittedText = true; for (const text of turnText) yield { type: "delta", text }; }
+        else if (!emittedText && completed.output_text.trim()) { emittedText = true; yield { type: "delta", text: completed.output_text }; }
         if (!emittedText) throw new AssistantRuntimeError("malformed_response", "The Assistant returned an empty response.");
         yield { type: "done", references: uniqueReferences(references, assistantLimits.maxReferences) };
         return;

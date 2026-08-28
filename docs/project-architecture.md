@@ -1,10 +1,10 @@
 # LifeStack: Project Architecture
 
-Status: Finance through Phase 2C, Calendar through Phase 3B, School through Phase 4B, Tasks Phase 5A, Goals Phase 5B, Phase 6, and Assistant Phases 7A–7E accepted; Assistant Phase 7F implemented locally
+Status: LifeStack Phase 7 complete for V1. Finance through Phase 2C, Calendar through Phase 3B, School through Phase 4B, Tasks Phase 5A, Goals Phase 5B, Phase 6, and Assistant Phases 7A–7F are implemented.
 
 Last reviewed: 2026-08-28
 
-Current boundary: Complete Assistant Phase 7F individual School assessment mutations while preserving prior capabilities. Do not add Finance writes, assessment creation/deletion/archive/weight/course changes, other School writes, batches, persistence/memory, external integrations, Python, or ML.
+Current boundary: Phase 7 is closed. Do not begin Phase 8 or add Finance writes, new School mutation categories, persistence/memory, external integrations, autonomous actions, Python, or ML without a separately approved milestone.
 
 This is the durable architectural source of truth for LifeStack. It records decisions that future implementation sessions must preserve.
 
@@ -803,3 +803,15 @@ School form actions and Assistant confirmation share `features/school/mutations.
 Scores enter as exact decimal strings: raw earned/maximum or an explicit percentage represented as that percentage out of 100. Existing scaled-integer grade functions compute equivalence and course standing without floating-point business arithmetic. Recording a score marks work graded; clearing it removes both score values and returns graded work to upcoming. Missed work contributes zero at its configured weight, while exempt work is excluded from effective weighting without redistribution. Hypothetical grade questions never create proposals.
 
 Supported metadata is limited to title, assessment type, timing, effort, location, and notes. Date-only assessment dates remain dates; deadline and scheduled wall times are converted with the profile timezone, and scheduled work requires both endpoints. Terms, courses, targets, meetings, resources, assessment creation/deletion/archive, course/weight changes, and batches remain outside the Assistant. Confirmed changes flow through the existing authoritative School grade, Calendar projection, workload, and Dashboard services without duplicate records. Phase 7F adds no schema migration, generated-type change, persistent conversation storage, or hosted configuration.
+
+## 25. Final Phase 7 V1 Assistant boundary
+
+The final V1 Assistant has fifteen fixed bounded authenticated read functions and thirteen proposal-only mutation functions across Tasks, native Calendar, Goals, and individual School assessments. Read execution and mutation proposal registries remain structurally distinct. Unknown mutation names are rejected before domain lookup; no generic SQL/database tool, service-role client, user-supplied `userId`, Finance mutation, or direct model-to-database path exists.
+
+All supported writes use one confirmation architecture: validated exact arguments are stored behind a cryptographically random opaque token bound to the authenticated user for ten minutes. Confirmation consumes the token before invoking the ordinary RLS-bound domain service, preventing duplicate execution, replay, client argument changes, and automatic retry. Existing-record mutations use exact owned IDs and proposal-time `updated_at`; ambiguous conversational matches require clarification. Provider text accompanying a mutation call is withheld, so only an authoritative successful service result can produce success UI.
+
+The process-local pending registry and throttle are accepted V1 limitations. Restart/deployment safely invalidates pending proposals, and multi-instance routing may reject a token created on another instance. A shared short-lived store and distributed rate limiter are future deployment-hardening options. Conversations remain browser-local, `store: false` is retained, and privacy-safe telemetry excludes messages, private content, tool arguments, scores, credentials, and provider payloads.
+
+Calendar ownership remains `Native + Finance + School + Tasks + Goals`: only native rows are writable through Calendar tools, while other sources update through their authoritative domains. Profile IANA timezone utilities, date-only database values, inclusive all-day ranges, DST behavior, exact Finance money, exact School grade arithmetic, and decimal-string Goal progress remain domain responsibilities. Finance reads are intentionally retained while every Finance write is excluded for V1 safety.
+
+Phase 7 is complete. Memory, RAG, uploads, voice, external integrations, background/autonomous actions, and additional mutation domains require a future explicitly approved phase.

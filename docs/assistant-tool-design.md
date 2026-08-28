@@ -1,12 +1,14 @@
 # LifeStack Assistant tool design
 
-Status: Phase 7F confirmed School assessment mutations implemented. Fifteen bounded reads and thirteen proposal-only mutation functions are active. Assistant persistence does not exist.
+Status: LifeStack Phase 7 complete for V1. Fifteen bounded authenticated reads and thirteen proposal-only mutation functions are active. Assistant persistence does not exist, and Finance writes are deliberately unavailable.
 
 ## Phase 7B runtime
 
 The responsive `/assistant` interface keeps conversation state only in the browser and sends a bounded recent context to authenticated `POST /api/assistant`. The server uses one `AuthenticatedAppContext`, the ordinary RLS-bound Supabase client, and the fixed read-tool registry in `features/assistant/server/tools.ts`. It uses `gpt-5-mini` with low reasoning effort, a 900-token output ceiling, at most four tool-result iterations and eight total calls. OpenAI Responses events are translated to a validated NDJSON stream; tool results remain server-side and only answer text plus trusted structured references reaches the UI. `store: false` is set and LifeStack creates no conversation rows.
 
 Central safeguards are defined in `features/assistant/limits.ts`: 8,000 characters per user message, 12 messages/32,000 characters of context, 48 KB per serialized tool result, eight references, and conservative per-domain item caps. Every capped list reports `truncated` and `totalAvailable`. The process-local throttle allows one active turn per user, at least 1.5 seconds between starts, and six starts per minute; it resets across instances and deployments and is not a distributed security control.
+
+The pending-confirmation registry is also deliberately process-local for V1. A server restart invalidates proposals safely. In a multi-instance/serverless deployment, confirmation routed to another instance can reject an otherwise valid token. Persistent/shared short-lived confirmation storage is a future deployment-hardening option, not a reason to weaken user binding, expiry, or one-shot consumption now.
 
 References never come from generated Markdown. Tool adapters derive them from owned records or trusted Calendar provider routes, validate them against an approved same-origin route allowlist, and return them separately in the completion event. Assistant text is rendered as escaped plain text. Logs contain only request/correlation IDs, model, tool names/count, duration, and outcome—not messages, tool payloads, private domain values, credentials, or provider details.
 
@@ -241,9 +243,11 @@ Phase 7F adds only `update_assessment`, `set_assessment_score`, `clear_assessmen
 
 Hypothetical score questions are read-only. Assessment creation, deletion/archive, course/weight changes, terms, courses, course targets, meetings, resources, and batches are absent. Finance remains entirely read-only. Confirmed timing/status changes naturally flow through existing School Calendar projections, course standing, workload, Dashboard, and future Assistant reads; no duplicate rows or Assistant-specific state are created.
 
-## Future mutation designs — unavailable
+## Finance mutations — deliberately unavailable in V1
 
-### `create_finance_transaction`
+The Assistant can read Finance summaries, bills, and bounded cash-flow projections. It cannot create or edit transactions, transfers, budgets, bill state, or accounts. This is a deliberate product and safety boundary for LifeStack V1, not an accidental missing handler. Requests mixing a supported mutation with a Finance write must be separated before any proposal is created.
+
+### Possible future `create_finance_transaction` design
 
 - Purpose/arguments: record one transaction using owned `accountId`, direction, positive exact `amount`, currency/account semantics, date, optional owned category, payee, description, and notes.
 - Ownership/service: account/category IDs are revalidated; adapter over `createTransaction` and Finance validation. The model never supplies ownership or a signed ledger amount directly.
@@ -262,3 +266,5 @@ Task and Goal descriptions, School notes/resources, Calendar descriptions, merch
 OpenAI code lives in `features/assistant/server/` behind the narrow authenticated `POST /api/assistant` Route Handler. One server configuration module owns model choice, reasoning level, output limits, and enabled tools. `OPENAI_API_KEY` stays server-only and is never named with `NEXT_PUBLIC_`. Tool handlers call the services above and never accept SQL, use a service-role key, or expose arbitrary database access.
 
 Context is fetched just in time through targeted tools with bounded ranges and compact results. The Assistant must not preload the full database. Domain services remain authoritative for money, grades, recurrence, overdue classification, and Goal progress; the model explains results rather than recalculating them. Conversation persistence (`assistant_threads` / `assistant_messages`) remains deferred until retention, deletion/export, tool-call metadata, memory semantics, and RLS requirements are deliberately designed.
+
+Model text for a response turn is held server-side until the response is known not to contain a mutation call. If a mutation call is present, model-authored success prose is discarded and only the trusted confirmation event is sent. The browser reports success only after the authenticated domain service returns success. Provider failure, validation failure, stale state, expiry, cancellation, or abort can never be presented as a completed write.

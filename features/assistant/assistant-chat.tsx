@@ -56,6 +56,7 @@ export function AssistantChat() {
   const retryVisibleRef = useRef<ChatMessage[] | null>(null);
   const stickToBottomRef = useRef(true);
   const confirmationLocked = confirmation?.state === "pending" || confirmation?.state === "executing";
+  const confirmationHeading = confirmation?.state === "pending" ? "Confirmation required" : confirmation?.state === "executing" ? "Applying confirmed change" : confirmation?.state === "completed" ? "Change completed" : confirmation?.state === "failed" ? "Change not applied" : "Change cancelled";
 
   useEffect(() => {
     if (stickToBottomRef.current)
@@ -322,12 +323,12 @@ export function AssistantChat() {
       </div>
       <div className="border-t bg-background/80 p-3 sm:p-4">
         {confirmation ? (
-          <div className="mx-auto mb-3 max-w-4xl rounded-xl border border-primary/30 bg-accent/30 p-4" role="group" aria-label="LifeStack change confirmation">
+          <div aria-label={`LifeStack change ${confirmation.state}`} aria-live="polite" className="mx-auto mb-3 max-w-4xl rounded-xl border border-primary/30 bg-accent/30 p-4" role="group">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Confirmation required</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">{confirmationHeading}</p>
                 <h3 className="mt-1 font-semibold">{confirmation.preview.actionLabel}</h3>
-                <p className="text-sm text-muted-foreground">{confirmation.preview.subjectTitle}</p>
+                <p className="break-words text-sm text-muted-foreground">{confirmation.preview.subjectTitle}</p>
               </div>
               <span className="rounded-full border bg-background px-2 py-1 text-xs capitalize">{confirmation.state}</span>
             </div>

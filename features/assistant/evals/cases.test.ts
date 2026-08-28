@@ -8,9 +8,9 @@ describe("Assistant deterministic evaluation catalog", () => {
   const registry = new Set([...assistantToolDefinitions, ...assistantMutationToolDefinitions].map((tool) => tool.name));
 
   it("covers representative single-domain, cross-domain, missing-data, and mutation requests", () => {
-    expect(assistantEvalCases).toHaveLength(34);
+    expect(assistantEvalCases).toHaveLength(39);
     expect(assistantEvalCases.some((item) => item.expectedTools.length > 1)).toBe(true);
-    expect(assistantEvalCases.filter((item) => item.expectedTools.length === 0)).toHaveLength(7);
+    expect(assistantEvalCases.filter((item) => item.expectedTools.length === 0)).toHaveLength(10);
     expect(assistantEvalCases.some((item) => item.expectedBehavior.includes("no matching"))).toBe(true);
   });
 

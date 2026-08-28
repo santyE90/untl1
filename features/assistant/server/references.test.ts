@@ -7,7 +7,7 @@ const id = "02c682b2-c324-4a49-913d-085d028768cd";
 const reference = (href: string): AssistantReference => ({ type: "task", id, label: "Open record", href });
 
 describe("trusted Assistant references", () => {
-  it.each(["/calendar", "/calendar?date=2026-08-27", `/calendar/events/${id}`, "/finance", "/finance/planning", `/school/courses/${id}`, "/tasks", `/tasks?task=${id}#task-${id}`, `/goals/${id}`])("accepts approved same-origin route %s", (href) => {
+  it.each(["/calendar", "/calendar?date=2026-08-27", `/calendar/events/${id}`, "/finance", "/finance/planning", `/school/courses/${id}`, `/school/courses/${id}#assessment-${id}`, "/tasks", `/tasks?task=${id}#task-${id}`, `/goals/${id}`])("accepts approved same-origin route %s", (href) => {
     expect(trustedReference(reference(href))).not.toBeNull();
   });
 
