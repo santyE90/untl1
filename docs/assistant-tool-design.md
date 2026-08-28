@@ -1,6 +1,6 @@
 # LifeStack Assistant tool design
 
-Status: Phase 7C confirmed Task mutations implemented. The 14 read tools remain active; only `create_task`, `update_task`, and `set_task_status` are model-visible proposal capabilities. Assistant persistence does not exist.
+Status: Phase 7D confirmed Task and native Calendar mutations implemented. The 14 read tools remain active; `create_task`, `update_task`, `set_task_status`, `create_calendar_event`, and `update_calendar_event` are proposal-only model capabilities. Assistant persistence does not exist.
 
 ## Phase 7B runtime
 
@@ -170,6 +170,28 @@ These three functions are model-callable in Phase 7C, but calls only create a va
 - Result: updated Task ID, status, completion timestamp, and changed fields.
 - Errors: validation, inaccessible/not-found Task, invalid relationship, conflict.
 
+## Confirmed native Calendar mutation proposals
+
+`create_calendar_event` and `update_calendar_event` use the same ten-minute, opaque, user-bound, one-shot confirmation registry as Task mutations. They never execute inside the model loop. The trusted proposal layer validates exact inputs, stores them server-side, and builds previews from validated values plus authoritative current data.
+
+### `create_calendar_event`
+
+- Purpose/arguments: create one native non-recurring event with title, optional type/description/location, and either inclusive date-only start/end dates or explicit local start/end wall times.
+- Ownership/service: `createNativeCalendarEvent` derives the owner from `AuthenticatedAppContext`, uses ordinary RLS-bound access, and reuses Calendar validation and timezone conversion. No `userId`, recurrence, reminder, archive, or delete input exists.
+- Confirmation: always required. Timed requests without an end time or duration must be clarified; no default duration is invented.
+- Result: normalized native event fields plus a server-derived trusted Calendar reference.
+- Errors: invalid or nonexistent local time, invalid ordering/date shape, authentication/RLS failure, or unexpected storage failure.
+
+### `update_calendar_event`
+
+- Purpose/arguments: edit explicitly supplied supported fields on exactly one owned, active, native, non-recurring event.
+- Ownership/service: proposal lookup constrains `calendar_events` by event ID, authenticated owner, and non-archived state. `updateNativeCalendarEvent` repeats ownership checks and applies proposal-time `updated_at` optimistically. Existing reminders are preserved because reminder editing is outside Assistant scope.
+- Confirmation: always required. Preview before/after values come from authoritative current data and validated normalized arguments. A stale row requires a new proposal.
+- Result: normalized event fields plus a trusted `/calendar/events/{id}` reference.
+- Errors: hidden/missing/foreign/projected event, recurring event, invalid time/date transition, stale conflict, or unexpected storage failure.
+
+Finance, School, Task, and Goal Calendar items are projections rather than native `calendar_events` rows. Their source IDs cannot authorize native writes and must be edited in their owning domains. Recurring native series and individual occurrences are also rejected. Shared Calendar aggregation and Dashboard queries require no Assistant-specific path.
+
 ## Future mutation designs — unavailable
 
 ### `create_goal` / `update_goal`
@@ -179,14 +201,6 @@ These three functions are model-callable in Phase 7C, but calls only create a va
 - Confirmation: explicit intent; confirm completion, archival, large/batch edits, or ambiguous progress replacement.
 - Result: Goal ID, normalized lifecycle, deadline, and exact progress values.
 - Errors: invalid progress-mode shape, invalid date/category, inaccessible Goal, conflict.
-
-### `create_calendar_event`
-
-- Purpose/arguments: create one native event with title, all-day dates or timed instants, timezone, recurrence, location, description, and reminder configuration.
-- Ownership/service: session owner; adapter over `createCalendarEvent` validation/mutation. It cannot create projected Finance/School/Task/Goal rows.
-- Confirmation: explicit intent; confirm recurrence and ambiguous timezone/date interpretations before saving.
-- Result: native event ID and normalized temporal/recurrence shape.
-- Errors: invalid date/time interval, unsupported recurrence, reminder validation, conflict.
 
 ### `create_finance_transaction`
 

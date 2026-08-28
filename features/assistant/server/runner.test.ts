@@ -8,7 +8,7 @@ vi.mock("./tools", () => ({
   assistantToolDefinitions: [{ type: "function", name: "get_tasks_due_today", description: "read", parameters: { type: "object", properties: {}, additionalProperties: false }, strict: true }],
   executeAssistantTool: executeTool,
 }));
-vi.mock("./mutation-proposals", () => ({ proposeAssistantTaskMutation: proposeMutation }));
+vi.mock("./mutation-proposals", () => ({ proposeAssistantMutation: proposeMutation }));
 
 import { AssistantRuntimeError, streamAssistant, type AssistantResponseClient } from "./runner";
 
@@ -28,7 +28,7 @@ describe("Assistant streamed read-tool loop", () => {
   });
 
   it("turns a mutation tool call into confirmation without executing a write", async () => {
-    const confirmation = { token: "x".repeat(43), expiresAt: "2026-08-27T20:10:00.000Z", preview: { operation: "create_task", actionLabel: "Create task", taskTitle: "Buy groceries", changes: [{ label: "Due", after: "2026-08-28" }] } };
+    const confirmation = { token: "x".repeat(43), expiresAt: "2026-08-27T20:10:00.000Z", preview: { operation: "create_task", actionLabel: "Create task", subjectTitle: "Buy groceries", changes: [{ label: "Due", after: "2026-08-28" }] } };
     proposeMutation.mockResolvedValueOnce({ ok: true, confirmation });
     const call = { type: "function_call", name: "create_task", arguments: "{}", call_id: "mutation-1" };
     const create = vi.fn().mockResolvedValueOnce(events(completed([call])));

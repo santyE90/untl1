@@ -7,6 +7,7 @@ import { getTasks } from "@/features/tasks/queries";
 import type { TaskWithContext } from "@/features/tasks/types";
 import { createTaskProposalSchema, setTaskStatusProposalSchema, updateTaskProposalSchema, type AssistantMutationPreview } from "../mutations";
 import { registerPendingTaskMutation } from "./pending-mutations";
+import { proposeAssistantCalendarMutation } from "./calendar-mutation-proposals";
 
 type ProposalResult = { ok: true; confirmation: ReturnType<typeof registerPendingTaskMutation> } | { ok: false; error: { code: string; message: string } };
 const error = (code: string, message: string): ProposalResult => ({ ok: false, error: { code, message } });
@@ -26,7 +27,7 @@ export async function proposeAssistantTaskMutation(name: string, rawArguments: s
     const input = { title: data.title, description: data.description ?? "", status: "todo", priority: data.priority ?? "medium", dueKind: data.dueLocal ? "timed" : data.dueDate ? "date" : "none", dueDate: data.dueDate ?? "", dueLocal: data.dueLocal ?? "", estimatedEffortMinutes: data.estimatedEffortMinutes ?? "", assessmentId: data.assessmentId ?? "", goalId: data.goalId ?? "" };
     const validated = await validateTaskMutation(input, context);
     if (!validated.ok) return validated;
-    const preview: AssistantMutationPreview = { operation: "create_task", actionLabel: "Create task", taskTitle: data.title, changes: [{ label: "Status", after: "Todo" }, { label: "Priority", after: shown(data.priority ?? "medium") }, ...(data.dueDate ? [{ label: "Due", after: data.dueDate }] : data.dueLocal ? [{ label: "Due", after: `${data.dueLocal} (${context.timeZone})` }] : []), ...(data.estimatedEffortMinutes ? [{ label: "Effort", after: `${data.estimatedEffortMinutes} minutes` }] : [])] };
+    const preview: AssistantMutationPreview = { operation: "create_task", actionLabel: "Create task", subjectTitle: data.title, changes: [{ label: "Status", after: "Todo" }, { label: "Priority", after: shown(data.priority ?? "medium") }, ...(data.dueDate ? [{ label: "Due", after: data.dueDate }] : data.dueLocal ? [{ label: "Due", after: `${data.dueLocal} (${context.timeZone})` }] : []), ...(data.estimatedEffortMinutes ? [{ label: "Effort", after: `${data.estimatedEffortMinutes} minutes` }] : [])] };
     return { ok: true, confirmation: registerPendingTaskMutation(context.user.id, { operation: "create_task", input }, preview) };
   }
 
@@ -37,7 +38,7 @@ export async function proposeAssistantTaskMutation(name: string, rawArguments: s
     const task = tasks.tasks.find((item) => item.id === parsed.data.taskId);
     if (!task) return error("not_found", "Task was not found or is unavailable.");
     if (task.status === parsed.data.status) return error("conflict", `The Task is already ${shown(task.status)}.`);
-    const preview: AssistantMutationPreview = { operation: "set_task_status", actionLabel: parsed.data.status === "completed" ? "Mark complete" : parsed.data.status === "todo" && task.status === "completed" ? "Reopen task" : "Change task status", taskTitle: task.title, changes: [{ label: "Status", before: shown(task.status), after: shown(parsed.data.status) }] };
+    const preview: AssistantMutationPreview = { operation: "set_task_status", actionLabel: parsed.data.status === "completed" ? "Mark complete" : parsed.data.status === "todo" && task.status === "completed" ? "Reopen task" : "Change task status", subjectTitle: task.title, changes: [{ label: "Status", before: shown(task.status), after: shown(parsed.data.status) }] };
     return { ok: true, confirmation: registerPendingTaskMutation(context.user.id, { operation: "set_task_status", taskId: task.id, status: parsed.data.status, expectedUpdatedAt: task.updated_at }, preview) };
   }
 
@@ -62,8 +63,12 @@ export async function proposeAssistantTaskMutation(name: string, rawArguments: s
     if (changes.assessmentId !== undefined) add("Assessment", task.assessment?.name ?? null, changes.assessmentId ? tasks.assessmentOptions.find((item) => item.id === changes.assessmentId)?.name ?? "Selected assessment" : null);
     if (changes.goalId !== undefined) add("Goal", task.goal?.title ?? null, changes.goalId ? tasks.goalOptions.find((item) => item.id === changes.goalId)?.title ?? "Selected goal" : null);
     if (!previewChanges.length) return error("conflict", "The proposal does not change this Task.");
-    const preview: AssistantMutationPreview = { operation: "update_task", actionLabel: "Update task", taskTitle: task.title, changes: previewChanges };
+    const preview: AssistantMutationPreview = { operation: "update_task", actionLabel: "Update task", subjectTitle: task.title, changes: previewChanges };
     return { ok: true, confirmation: registerPendingTaskMutation(context.user.id, { operation: "update_task", taskId: task.id, input, expectedUpdatedAt: task.updated_at }, preview) };
   }
   return error("validation", "Unsupported Assistant mutation.");
+}
+
+export async function proposeAssistantMutation(name: string, rawArguments: string, context: AuthenticatedAppContext) {
+  return name === "create_calendar_event" || name === "update_calendar_event" ? proposeAssistantCalendarMutation(name, rawArguments, context) : proposeAssistantTaskMutation(name, rawArguments, context);
 }

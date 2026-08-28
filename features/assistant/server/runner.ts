@@ -9,7 +9,7 @@ import type { AuthenticatedAppContext } from "@/features/shared/server-context";
 import { assistantConfig, getOpenAIApiKey } from "./config";
 import { assistantInstructions } from "./prompt";
 import { assistantMutationToolDefinitions, assistantMutationToolNames } from "./mutation-tools";
-import { proposeAssistantTaskMutation } from "./mutation-proposals";
+import { proposeAssistantMutation } from "./mutation-proposals";
 import { uniqueReferences } from "./references";
 import { assistantToolDefinitions, executeAssistantTool } from "./tools";
 
@@ -76,10 +76,10 @@ export async function* streamAssistant({ messages, context, signal, client, onTo
       yield { type: "status", phase: "using_tools" };
       const mutationCalls = calls.filter((call) => assistantMutationToolNames.has(call.name));
       if (mutationCalls.length) {
-        if (calls.length !== 1) throw new AssistantRuntimeError("malformed_response", "A Task change must be proposed separately from other tool calls.");
+        if (calls.length !== 1) throw new AssistantRuntimeError("malformed_response", "A LifeStack change must be proposed separately from other tool calls.");
         const call = mutationCalls[0];
         onTool?.(call.name);
-        const proposal = await proposeAssistantTaskMutation(call.name, call.arguments, context);
+        const proposal = await proposeAssistantMutation(call.name, call.arguments, context);
         if (proposal.ok) {
           yield { type: "confirmation", ...proposal.confirmation };
           yield { type: "done", references: [] };

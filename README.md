@@ -1,6 +1,6 @@
 # LifeStack
 
-LifeStack is a responsive personal-management application built with Next.js 16 and Supabase. It includes authentication, Finance, a source-aware Calendar, deterministic academic planning, Tasks, measurable Goals, and an authenticated Assistant with bounded reads and confirmation-gated Task changes.
+LifeStack is a responsive personal-management application built with Next.js 16 and Supabase. It includes authentication, Finance, a source-aware Calendar, deterministic academic planning, Tasks, measurable Goals, and an authenticated Assistant with bounded reads and confirmation-gated Task and native Calendar changes.
 
 [docs/project-architecture.md](docs/project-architecture.md) is the detailed source of truth for schema decisions, ledger semantics, security boundaries, and roadmap.
 
@@ -11,7 +11,7 @@ LifeStack is a responsive personal-management application built with Next.js 16 
 - Supabase Auth and PostgreSQL with RLS
 - Zod, Vitest, Supabase migrations, and pgTAP tests
 
-Assistant Phase 7C preserves 14 bounded reads and adds confirmation-gated creation, editing, and status changes for individual Tasks only. Model calls create proposals; a separate authenticated one-shot confirmation executes through shared Task services. Conversations are not persisted; see [docs/assistant-tool-design.md](docs/assistant-tool-design.md).
+Assistant Phase 7D preserves 14 bounded reads and Phase 7C Task writes, then adds confirmation-gated creation and editing for owned native non-recurring Calendar events. Model calls create proposals; a separate authenticated one-shot confirmation executes through shared domain services. Conversations are not persisted; see [docs/assistant-tool-design.md](docs/assistant-tool-design.md).
 
 ## Local setup
 
@@ -55,13 +55,13 @@ supabase/migrations/20260827000700_tasks_core.sql
 supabase/migrations/20260827000800_goals_core.sql
 ```
 
-Assistant Phase 7C has no schema changes and no pending migration. Before a future schema push, inspect the linked dry-run:
+Assistant Phase 7D has no schema changes and no pending migration. Before a future schema push, inspect the linked dry-run:
 
 ```bash
 npm run db:push -- --dry-run
 ```
 
-After any future migration is applied, run `npm run db:types:linked`. No Supabase Dashboard changes are required for Phase 7C.
+After any future migration is applied, run `npm run db:types:linked`. No Supabase Dashboard changes are required for Phase 7D.
 
 ## Quality commands
 
@@ -116,7 +116,7 @@ docs/                durable architecture and project decisions
 
 ## Scope
 
-Implemented through Assistant Phase 7C:
+Implemented through Assistant Phase 7D:
 
 - signup, email confirmation, login/logout, protected sessions, and profiles;
 - responsive desktop/mobile application shell;
@@ -163,5 +163,7 @@ Implemented through Assistant Phase 7C:
 - deterministic Assistant stream/security tests and a selective read-tool evaluation catalog.
 - confirmation-gated `create_task`, `update_task`, and `set_task_status` proposals using shared authenticated Task mutation services;
 - opaque ten-minute, user-bound, one-shot confirmation tokens with cancel/New chat invalidation and stale-update protection.
+- confirmation-gated `create_calendar_event` and `update_calendar_event` proposals for owned native non-recurring timed and all-day events using shared Calendar services;
+- trusted Calendar previews/references, profile-timezone conversion, projected-source rejection, and optimistic Calendar update protection.
 
-Deferred until later approval: Task archive/delete/recurrence/batches; Calendar, Goal, School, and Finance Assistant writes; persistent chat history/memory; recurring-task occurrence completion; intelligent scheduling; analytics; notifications; external integrations; and Python/ML.
+Deferred until later approval: Task archive/delete/recurrence/batches; Calendar recurrence/reminders/archive/delete/occurrence edits; Goal, School, and Finance Assistant writes; persistent chat history/memory; recurring-task occurrence completion; intelligent scheduling; analytics; notifications; external integrations; and Python/ML.

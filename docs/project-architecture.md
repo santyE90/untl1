@@ -1,10 +1,10 @@
 # LifeStack: Project Architecture
 
-Status: Finance through Phase 2C, Calendar through Phase 3B, School through Phase 4B, Tasks Phase 5A, Goals Phase 5B, Phase 6, and Assistant Phases 7A–7B accepted; Assistant Phase 7C implemented locally
+Status: Finance through Phase 2C, Calendar through Phase 3B, School through Phase 4B, Tasks Phase 5A, Goals Phase 5B, Phase 6, and Assistant Phases 7A–7C accepted; Assistant Phase 7D implemented locally
 
 Last reviewed: 2026-08-27
 
-Current boundary: Complete Assistant Phase 7C Task mutations only. Do not add archive/delete, recurrence, batch changes, Calendar, Goal, School, or Finance mutations, persistence/memory, intelligent scheduling, external integrations, Python, or ML.
+Current boundary: Complete Assistant Phase 7D native Calendar create/update mutations while preserving Phase 7C Task mutations. Do not add archive/delete, recurrence, reminders, batch changes, Goal, School, or Finance mutations, persistence/memory, intelligent scheduling, external integrations, Python, or ML.
 
 This is the durable architectural source of truth for LifeStack. It records decisions that future implementation sessions must preserve.
 
@@ -749,3 +749,23 @@ Confirmation synchronously consumes the entry before awaiting the Task write, ma
 The responsive card shows the action, Task title, and meaningful before/after fields with Confirm and Cancel. Composer sends are locked while a decision or execution is pending. Successful results include normalized Task fields and a validated Task reference. Existing Calendar projection and Dashboard queries observe the same Task row after route revalidation.
 
 Mutation observations record request/correlation ID, operation, proposed/confirmed/cancelled/succeeded/failed state, duration, and safe error class. They exclude messages, descriptions, titles, arguments, relationship content, credentials, and provider payloads. Stored Task text remains untrusted display data and cannot alter pending arguments, bypass confirmation, or enable tools. Conversation persistence remains deferred and no migration is introduced.
+
+## 22. Assistant Phase 7D: confirmed native Calendar mutations
+
+Phase 7D adds exactly `create_calendar_event` and `update_calendar_event` to the proposal-only mutation registry while retaining the three Phase 7C Task operations and all 14 read tools. Calendar archive/delete, recurrence creation or editing, occurrence exceptions, reminders, batches, and projected-source edits are absent. Goal, School, and Finance remain read-only through the Assistant.
+
+### 22.1 Shared Calendar mutation services
+
+`features/calendar/mutations.ts` owns native-event parsing, creation, and update as authenticated domain services. Existing Calendar form Server Actions delegate to these services, so manual UI and Assistant confirmation share the same Zod validation, inclusive all-day dates, timed-event ordering, IANA timezone conversion, DST rejection rules, ownership derivation, RLS-bound client, and `ServiceResult` contract. Manual forms retain their established recurrence and reminder behavior; Assistant proposals always store empty recurrence and reminder inputs and preserve existing reminders during supported updates.
+
+Assistant creation supports one timed event with explicit local start and end, one all-day date, or an inclusive multi-day all-day range. Timed wall-clock values are converted with Calendar's existing timezone utilities using the authenticated profile timezone; PostgreSQL date values never pass through UTC. Nonexistent spring-forward times are rejected, established fall-back handling is retained, and no default duration is invented.
+
+### 22.2 Native ownership and projection safety
+
+An update proposal requires an exact event ID, but IDs are references rather than authorization. The trusted proposal layer queries `calendar_events` with the authenticated user ID and active-row constraint through the ordinary Supabase client, rejects hidden or missing rows uniformly, and refuses any row with recurrence. Finance, School, Task, and Goal projections have no authoritative row in `calendar_events`, so their source IDs cannot pass this boundary. Calendar aggregation remains `Native + Finance + School + Tasks + Goals`; mutations change only native source rows and the existing Calendar/Dashboard services observe them normally.
+
+### 22.3 Confirmation, concurrency, and result contract
+
+Validated Calendar arguments and the authoritative current snapshot produce the confirmation card; model-authored prose is not trusted preview data. Updates store proposal-time `updated_at`. Confirmation consumes the opaque user-bound token before execution, then the shared service verifies the row and applies the same optimistic value to its update query. A manual intervening edit causes a conflict and requires a fresh proposal. Tokens remain ten-minute, one-shot, cancellable, replay-resistant, process-local values; failed writes are not retried automatically.
+
+Successful Calendar writes return normalized event fields and a server-derived `/calendar/events/{id}` reference that passes the same-origin allowlist. Telemetry records only operation/state/request correlation/duration/safe error class. Titles, descriptions, locations, arguments, user IDs, and provider payloads are excluded. No schema, migration, database type generation, conversation persistence, or new OpenAI privilege is introduced in Phase 7D.
