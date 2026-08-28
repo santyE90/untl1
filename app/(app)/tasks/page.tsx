@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Archive, CalendarClock, Check, Circle, Play, RotateCcw } from "lucide-react";
 
 import { formatCalendarDate, formatCalendarTime, instantToLocalInput } from "@/features/calendar/dates";
-import { archiveTask, setTaskStatus } from "@/features/tasks/actions";
+import { archiveTask, restoreTask, setTaskStatus } from "@/features/tasks/actions";
 import { getTasks } from "@/features/tasks/queries";
 import { filterTasks, formatEffort, taskBucket, taskDueLocalDate } from "@/features/tasks/task-service";
 import { TaskForm } from "@/features/tasks/task-form";
@@ -11,13 +11,13 @@ import type { TaskWithContext } from "@/features/tasks/types";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Tasks" };
-const filters = [["all", "All"], ["today", "Today"], ["upcoming", "Upcoming"], ["overdue", "Overdue"], ["no_due_date", "No date"], ["completed", "Completed"]] as const;
+const filters = [["all", "All"], ["today", "Today"], ["upcoming", "Upcoming"], ["overdue", "Overdue"], ["no_due_date", "No date"], ["completed", "Completed"], ["archived", "Archived"]] as const;
 
 export default async function TasksPage({ searchParams }: { searchParams: Promise<{ filter?: string; error?: string; success?: string; assessment?: string; goal?: string; task?: string }> }) {
   const query = await searchParams;
   const data = await getTasks();
   const filter = filters.some(([value]) => value === query.filter) ? query.filter! : "all";
-  const tasks = filterTasks(data.tasks, filter, data.today, data.timezone);
+  const tasks = filter === "archived" ? [] : filterTasks(data.tasks, filter, data.today, data.timezone);
   const assessmentOptions = data.assessmentOptions.map((option) => ({ id: option.id, name: option.name, courseCode: option.course!.code }));
   const goalOptions = data.goalOptions.map((goal) => ({ id: goal.id, title: goal.title }));
   const prefill = data.assessmentOptions.find((option) => option.id === query.assessment);
@@ -30,7 +30,8 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     {query.error ? <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{query.error}</p> : null}{query.success ? <p className="rounded-lg bg-success/10 p-3 text-sm text-success">{query.success}</p> : null}
     <nav aria-label="Task filters" className="flex gap-2 overflow-x-auto pb-1">{filters.map(([value, label]) => <Link className={cn("whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold", filter === value ? "bg-primary text-primary-foreground" : "border bg-card")} href={`/tasks?filter=${value}`} key={value}>{label}</Link>)}</nav>
     <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Summary label="Active" value={data.tasks.filter((task) => task.status !== "completed").length} /><Summary label="Due today" value={filterTasks(data.tasks, "today", data.today, data.timezone).length} /><Summary label="Overdue" value={filterTasks(data.tasks, "overdue", data.today, data.timezone).length} danger /><Summary label="Completed" value={filterTasks(data.tasks, "completed", data.today, data.timezone).length} /></section>
-    <section aria-label={`${filter} tasks`} className="space-y-3">{tasks.length ? tasks.map((task) => <TaskCard assessmentOptions={assessmentOptions} goalOptions={goalOptions} highlighted={query.task === task.id} key={task.id} task={task} timezone={data.timezone} today={data.today} />) : <div className="rounded-2xl border border-dashed bg-card p-8 text-center"><p className="font-semibold">No tasks in this view</p><p className="mt-1 text-sm text-muted-foreground">LifeStack does not invent tasks or due dates.</p></div>}</section>
+    {filter !== "archived" ? <section aria-label={`${filter} tasks`} className="space-y-3">{tasks.length ? tasks.map((task) => <TaskCard assessmentOptions={assessmentOptions} goalOptions={goalOptions} highlighted={query.task === task.id} key={task.id} task={task} timezone={data.timezone} today={data.today} />) : <div className="rounded-2xl border border-dashed bg-card p-8 text-center"><p className="font-semibold">No tasks in this view</p><p className="mt-1 text-sm text-muted-foreground">LifeStack does not invent tasks or due dates.</p></div>}</section> : null}
+    {filter === "archived" ? <section className="space-y-3" aria-label="Archived tasks">{data.archivedTasks.length ? data.archivedTasks.map((task) => <article className="flex flex-col gap-3 rounded-2xl border bg-card p-5 sm:flex-row sm:items-center" key={task.id}><div className="min-w-0 flex-1"><h2 className="font-semibold">{task.title}</h2><p className="text-xs text-muted-foreground">Archived task history</p></div><form action={restoreTask}><input name="id" type="hidden" value={task.id}/><button className="min-h-10 rounded-lg border px-3 text-sm font-semibold text-primary hover:bg-muted">Restore task</button></form></article>) : <p className="rounded-xl border border-dashed p-5 text-sm text-muted-foreground">No archived tasks.</p>}</section> : null}
     <section className="rounded-2xl border bg-card p-5 shadow-sm" id="new-task"><details open={Boolean(prefill || prefillGoal) || !data.tasks.length}><summary className="cursor-pointer text-lg font-bold">Create task</summary><p className="mt-1 text-sm text-muted-foreground">Date-only work remains tied to its calendar date; timed work uses your profile timezone.</p><div className="mt-4"><TaskForm assessments={assessmentOptions} defaults={prefillDefaults} goals={goalOptions} /></div></details></section>
   </div>;
 }

@@ -49,7 +49,7 @@ export async function archiveCalendarEvent(formData: FormData) {
   if (!calendarEventIdSchema.safeParse(id).success) destinationError("/calendar", "Event is invalid.");
   const context = await getAuthenticatedAppContext();
   const { data, error } = await context.supabase.from("calendar_events").update({ archived_at: new Date().toISOString() }).eq("id", id).eq("user_id", context.user.id).is("archived_at", null).select("id").maybeSingle();
-  if (error) destinationError(`/calendar/events/${id}`, error.message);
+  if (error) destinationError(`/calendar/events/${id}`, "The event could not be archived.");
   if (!data) destinationError("/calendar", "Event was not found.");
   revalidatePath("/calendar", "layout"); revalidatePath("/dashboard");
   redirect("/calendar?success=Event%20archived.");
@@ -60,7 +60,7 @@ export async function restoreCalendarEvent(formData: FormData) {
   if (!calendarEventIdSchema.safeParse(id).success) destinationError("/calendar/settings", "Event is invalid.");
   const context = await getAuthenticatedAppContext();
   const { data, error } = await context.supabase.from("calendar_events").update({ archived_at: null }).eq("id", id).eq("user_id", context.user.id).not("archived_at", "is", null).select("id").maybeSingle();
-  if (error) destinationError("/calendar/settings", error.message);
+  if (error) destinationError("/calendar/settings", "The event could not be restored.");
   if (!data) destinationError("/calendar/settings", "Archived event was not found.");
   revalidatePath("/calendar", "layout"); revalidatePath("/dashboard");
   redirect("/calendar/settings?success=Event%20restored.");

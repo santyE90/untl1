@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Bot, CalendarDays, CircleUserRound, Database, Settings2 } from "lucide-react";
+import { Bot, CalendarDays, CircleUserRound, Database, MoonStar, Settings2 } from "lucide-react";
 
-import { saveCalendarPreference, saveGeneralPreferences } from "@/features/settings/actions";
+import { saveCalendarPreference, saveGeneralPreferences, saveThemePreference } from "@/features/settings/actions";
 import { getSettingsData } from "@/features/settings/service";
 import { SettingsSubmitButton } from "@/features/settings/submit-button";
-import { supportedIanaTimeZones } from "@/features/shared/timezones";
+import { supportedTimeZoneOptions } from "@/features/shared/timezones";
 
 export const metadata: Metadata = { title: "Settings" };
 const panel = "rounded-2xl border bg-card p-5 shadow-sm sm:p-6"; const input = "min-h-11 w-full rounded-lg border bg-background px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20";
 const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ success?: string; error?: string; section?: string }> }) {
-  const [query, data] = await Promise.all([searchParams, getSettingsData()]); const zones = supportedIanaTimeZones();
+  const [query, data] = await Promise.all([searchParams, getSettingsData()]); const zones = supportedTimeZoneOptions();
   return <div className="mx-auto max-w-4xl space-y-7"><header><p className="text-sm font-semibold text-primary">LifeStack preferences</p><h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">Settings</h1><p className="mt-2 text-sm text-muted-foreground">Manage the defaults LifeStack uses across your modules.</p></header>
     {query.success ? <p className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success" role="status">{query.success}</p> : null}{query.error ? <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{query.error}</p> : null}
 
@@ -20,10 +20,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       <label className="grid gap-1.5 text-sm font-semibold">Default currency<input className={input} defaultValue={data.currency} maxLength={3} name="currency" pattern="[A-Za-z]{3}" required aria-describedby="currency-help"/></label>
       <label className="grid gap-1.5 text-sm font-semibold">Week starts on<select className={input} defaultValue={String(data.weekStartsOn)} name="weekStartsOn">{days.map((day, index) => <option key={day} value={index}>{day}</option>)}</select></label>
       <p className="text-xs leading-5 text-muted-foreground sm:col-span-2" id="currency-help">The currency default is used for new supported records. Existing accounts, transactions, budgets, schedules, and Goal units are not converted or rewritten.</p>
-      <label className="grid gap-1.5 text-sm font-semibold sm:col-span-2">Timezone<input className={input} defaultValue={data.timeZone} list="iana-timezones" maxLength={100} name="timeZone" required aria-describedby="timezone-help"/><datalist id="iana-timezones">{zones.map((zone) => <option key={zone} value={zone}/>)}</datalist></label>
+      <label className="grid gap-1.5 text-sm font-semibold sm:col-span-2">Timezone<input className={input} defaultValue={data.timeZone} list="iana-timezones" maxLength={100} name="timeZone" required aria-describedby="timezone-help" placeholder="Search Toronto, New York, London…"/><datalist id="iana-timezones">{zones.map((zone) => <option key={zone.value} label={zone.label} value={zone.value}/>)}</datalist></label>
       <p className="text-xs leading-5 text-muted-foreground sm:col-span-2" id="timezone-help">Existing timed records remain the same instant, but may display at a different local clock time. Date-only items stay date-only, and recurring series retain their stored timezone.</p>
       <div className="sm:col-span-2"><SettingsSubmitButton>Save general preferences</SettingsSubmitButton></div>
     </form></section>
+
+    <section className={panel} id="appearance" aria-labelledby="appearance-heading"><div className="flex items-center gap-3"><MoonStar className="size-6 text-primary"/><div><h2 className="text-xl font-bold" id="appearance-heading">Appearance</h2><p className="text-sm text-muted-foreground">Use your device setting or choose a persistent LifeStack theme.</p></div></div><form action={saveThemePreference} className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end"><label className="grid flex-1 gap-1.5 text-sm font-semibold">Theme<select className={input} defaultValue={data.theme} name="theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label><SettingsSubmitButton>Save appearance</SettingsSubmitButton></form><p className="mt-3 text-xs text-muted-foreground">System follows your operating-system preference and responds when it changes.</p></section>
 
     <section className={panel} id="calendar" aria-labelledby="calendar-heading"><div className="flex items-center gap-3"><CalendarDays className="size-6 text-primary"/><div><h2 className="text-xl font-bold" id="calendar-heading">Calendar</h2><p className="text-sm text-muted-foreground">Choose the view used when Calendar opens without a view in its URL.</p></div></div><form action={saveCalendarPreference} className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end"><label className="grid flex-1 gap-1.5 text-sm font-semibold">Default view<select className={input} defaultValue={data.calendarDefaultView} name="defaultView"><option value="month">Month</option><option value="week">Week</option><option value="day">Day</option><option value="agenda">Agenda</option></select></label><SettingsSubmitButton>Save Calendar preference</SettingsSubmitButton></form><Link className="mt-4 inline-flex text-sm font-semibold text-primary" href="/calendar/settings">Manage archived Calendar events →</Link></section>
 

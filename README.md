@@ -53,15 +53,17 @@ supabase/migrations/20260827000500_school_core.sql
 supabase/migrations/20260827000600_school_planning.sql
 supabase/migrations/20260827000700_tasks_core.sql
 supabase/migrations/20260827000800_goals_core.sql
+supabase/migrations/20260828000100_usability_crud_theme.sql
+supabase/migrations/20260828000200_safe_budget_delete.sql
 ```
 
-Assistant Phase 7F, Analytics Phases 8A–8C, and Settings Phase 9 have no schema changes and no pending migration. Before a future schema push, inspect the linked dry-run:
+The focused usability/CRUD migration is applied to hosted Supabase and linked types have been regenerated. Before a future schema push, inspect the linked dry-run:
 
 ```bash
 npm run db:push -- --dry-run
 ```
 
-After any future migration is applied, run `npm run db:types:linked`. No Supabase Dashboard changes are required for Phase 7F, Analytics Phases 8A–8C, or Settings Phase 9.
+After any future migration is applied, run `npm run db:types:linked`. No manual Supabase Dashboard changes are required for this correction pass.
 
 ## Quality commands
 
@@ -111,7 +113,7 @@ docs/                durable architecture and project decisions
 - RLS and composite ownership foreign keys prevent cross-user reads and references.
 - Authenticated column grants protect owner IDs, audit fields, and opening balances.
 - Transfers and budgets can only be saved through narrowly scoped atomic database functions.
-- Financial records are archived, paused, or voided instead of destructively deleted.
+- Financial history is archived, paused, or voided; only unused accounts and recurring templates have explicit confirmed permanent-delete paths.
 - The browser receives no service-role or OpenAI secret.
 
 ## Scope
@@ -174,6 +176,10 @@ Implemented through Settings Phase 9:
 - deep `/analytics/finance`, `/analytics/school`, `/analytics/tasks`, and `/analytics/goals` reports with shared preset/custom ranges;
 - exact previous-period Finance comparisons, monthly unprorated budget performance, assessment/workload reporting, Task lifecycle metrics, and current Goal health.
 - centralized default currency, IANA timezone, week-start, and Calendar default-view preferences with authenticated atomic updates;
+- searchable labeled IANA timezones and persisted System/Light/Dark appearance with system-color-scheme tracking;
+- editable School terms/courses and atomic multi-row meeting schedules with independent weekday times;
+- safe Finance account metadata editing, recurring-template and monthly-budget editing/deletion, custom-category management, and archive restoration;
+- shared accessible mutation toasts, confirmed destructive actions, easy desktop/mobile logout, and a temporary Lucide cat brand mark;
 - read-only Assistant privacy and Account & Data information, with Calendar archive management retained in its authoritative route.
 
 Deferred until later approval: Task archive/delete/recurrence/batches; Calendar recurrence/reminders/archive/delete/occurrence edits; Goal archive/delete/milestones/batches/automatic cross-domain progress; all School writes except the four supported individual assessment operations; all Finance Assistant writes; persistent chat history/memory; recurring-task occurrence completion; intelligent scheduling; advanced analytics, exports, forecasting, and saved reports; notifications; external integrations; and Python/ML.

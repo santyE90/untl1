@@ -46,10 +46,20 @@ export async function archiveGoal(formData: FormData) {
   if (!goalEntityIdSchema.safeParse(id).success) goalsFail("Goal identifier is invalid.");
   const { user, supabase } = await context();
   const { data, error } = await supabase.from("goals").update({ archived_at: new Date().toISOString() }).eq("id", id).eq("user_id", user.id).select("id").maybeSingle();
-  if (error) goalFail(id, error.message);
+  if (error) goalFail(id, "The goal could not be archived.");
   if (!data) goalFail(id, "Goal is unavailable.");
   refreshGoals();
   redirect(`/goals?filter=archived&success=${encodeURIComponent("Goal archived.")}`);
+}
+
+export async function restoreGoal(formData: FormData) {
+  const id = text(formData, "id");
+  if (!goalEntityIdSchema.safeParse(id).success) goalsFail("Goal identifier is invalid.");
+  const { user, supabase } = await context();
+  const { data, error } = await supabase.from("goals").update({ archived_at: null }).eq("id", id).eq("user_id", user.id).select("id").maybeSingle();
+  if (error || !data) goalFail(id, "The goal could not be restored.");
+  refreshGoals();
+  redirect(`/goals/${id}?success=${encodeURIComponent("Goal restored.")}`);
 }
 
 export async function saveMilestone(formData: FormData) {
@@ -68,7 +78,7 @@ export async function saveMilestone(formData: FormData) {
   const result = id
     ? await supabase.from("goal_milestones").update(row).eq("id", id).eq("goal_id", goalId).eq("user_id", user.id).select("id").single()
     : await supabase.from("goal_milestones").insert({ user_id: user.id, goal_id: goalId, ...row }).select("id").single();
-  if (result.error) goalFail(goalId, result.error.message);
+  if (result.error) goalFail(goalId, "The milestone could not be saved.");
   refreshGoals();
   redirect(`/goals/${goalId}?success=${encodeURIComponent(id ? "Milestone updated." : "Milestone added.")}`);
 }
@@ -80,7 +90,7 @@ export async function setMilestoneCompletion(formData: FormData) {
   const { user, supabase } = await context();
   const completed = text(formData, "completed") === "true";
   const { data, error } = await supabase.from("goal_milestones").update({ is_completed: completed }).eq("id", id).eq("goal_id", goalId).eq("user_id", user.id).select("id").maybeSingle();
-  if (error) goalFail(goalId, error.message);
+  if (error) goalFail(goalId, "The milestone could not be updated.");
   if (!data) goalFail(goalId, "Milestone is unavailable.");
   refreshGoals();
   redirect(`/goals/${goalId}?success=${encodeURIComponent(completed ? "Milestone completed." : "Milestone reopened.")}`);
@@ -92,8 +102,19 @@ export async function archiveMilestone(formData: FormData) {
   if (!goalEntityIdSchema.safeParse(id).success || !goalEntityIdSchema.safeParse(goalId).success) goalsFail("Milestone request is invalid.");
   const { user, supabase } = await context();
   const { data, error } = await supabase.from("goal_milestones").update({ archived_at: new Date().toISOString() }).eq("id", id).eq("goal_id", goalId).eq("user_id", user.id).select("id").maybeSingle();
-  if (error) goalFail(goalId, error.message);
+  if (error) goalFail(goalId, "The milestone could not be archived.");
   if (!data) goalFail(goalId, "Milestone is unavailable.");
   refreshGoals();
   redirect(`/goals/${goalId}?success=${encodeURIComponent("Milestone archived.")}`);
+}
+
+export async function restoreMilestone(formData: FormData) {
+  const id = text(formData, "id");
+  const goalId = text(formData, "goalId");
+  if (!goalEntityIdSchema.safeParse(id).success || !goalEntityIdSchema.safeParse(goalId).success) goalsFail("Milestone request is invalid.");
+  const { user, supabase } = await context();
+  const { data, error } = await supabase.from("goal_milestones").update({ archived_at: null }).eq("id", id).eq("goal_id", goalId).eq("user_id", user.id).select("id").maybeSingle();
+  if (error || !data) goalFail(goalId, "The milestone could not be restored.");
+  refreshGoals();
+  redirect(`/goals/${goalId}?success=${encodeURIComponent("Milestone restored.")}`);
 }

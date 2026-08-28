@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -822,6 +822,134 @@ export type Database = {
           },
         ]
       }
+      goal_milestones: {
+        Row: {
+          archived_at: string | null
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          goal_id: string
+          id: string
+          is_completed: boolean
+          sort_order: number
+          target_date: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          goal_id: string
+          id?: string
+          is_completed?: boolean
+          sort_order?: number
+          target_date?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          goal_id?: string
+          id?: string
+          is_completed?: boolean
+          sort_order?: number
+          target_date?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_milestones_goal_id_user_id_fkey"
+            columns: ["goal_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "goal_milestones_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goals: {
+        Row: {
+          archived_at: string | null
+          category: string
+          completed_at: string | null
+          created_at: string
+          current_value: number | null
+          current_value_decimal: string | null
+          deadline: string | null
+          description: string | null
+          id: string
+          progress_mode: string
+          status: string
+          target_value: number | null
+          target_value_decimal: string | null
+          title: string
+          unit_label: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          category?: string
+          completed_at?: string | null
+          created_at?: string
+          current_value?: number | null
+          current_value_decimal?: string | null
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          progress_mode?: string
+          status?: string
+          target_value?: number | null
+          target_value_decimal?: string | null
+          title: string
+          unit_label?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          category?: string
+          completed_at?: string | null
+          created_at?: string
+          current_value?: number | null
+          current_value_decimal?: string | null
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          progress_mode?: string
+          status?: string
+          target_value?: number | null
+          target_value_decimal?: string | null
+          title?: string
+          unit_label?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           calendar_default_view: string
@@ -829,6 +957,7 @@ export type Database = {
           currency: string
           display_name: string | null
           id: string
+          theme_preference: string
           timezone: string
           updated_at: string
           week_starts_on: number
@@ -839,6 +968,7 @@ export type Database = {
           currency?: string
           display_name?: string | null
           id: string
+          theme_preference?: string
           timezone?: string
           updated_at?: string
           week_starts_on?: number
@@ -849,6 +979,7 @@ export type Database = {
           currency?: string
           display_name?: string | null
           id?: string
+          theme_preference?: string
           timezone?: string
           updated_at?: string
           week_starts_on?: number
@@ -1018,134 +1149,6 @@ export type Database = {
           },
         ]
       }
-      goal_milestones: {
-        Row: {
-          archived_at: string | null
-          completed_at: string | null
-          created_at: string
-          description: string | null
-          goal_id: string
-          id: string
-          is_completed: boolean
-          sort_order: number
-          target_date: string | null
-          title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          archived_at?: string | null
-          completed_at?: string | null
-          created_at?: string
-          description?: string | null
-          goal_id: string
-          id?: string
-          is_completed?: boolean
-          sort_order?: number
-          target_date?: string | null
-          title: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          archived_at?: string | null
-          completed_at?: string | null
-          created_at?: string
-          description?: string | null
-          goal_id?: string
-          id?: string
-          is_completed?: boolean
-          sort_order?: number
-          target_date?: string | null
-          title?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "goal_milestones_goal_id_user_id_fkey"
-            columns: ["goal_id", "user_id"]
-            isOneToOne: false
-            referencedRelation: "goals"
-            referencedColumns: ["id", "user_id"]
-          },
-          {
-            foreignKeyName: "goal_milestones_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      goals: {
-        Row: {
-          archived_at: string | null
-          category: string
-          completed_at: string | null
-          created_at: string
-          current_value: number | null
-          current_value_decimal: string | null
-          deadline: string | null
-          description: string | null
-          id: string
-          progress_mode: string
-          status: string
-          target_value: number | null
-          target_value_decimal: string | null
-          title: string
-          unit_label: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          archived_at?: string | null
-          category?: string
-          completed_at?: string | null
-          created_at?: string
-          current_value?: number | null
-          current_value_decimal?: string | null
-          deadline?: string | null
-          description?: string | null
-          id?: string
-          progress_mode?: string
-          status?: string
-          target_value?: number | null
-          target_value_decimal?: string | null
-          title: string
-          unit_label?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          archived_at?: string | null
-          category?: string
-          completed_at?: string | null
-          created_at?: string
-          current_value?: number | null
-          current_value_decimal?: string | null
-          deadline?: string | null
-          description?: string | null
-          id?: string
-          progress_mode?: string
-          status?: string
-          target_value?: number | null
-          target_value_decimal?: string | null
-          title?: string
-          unit_label?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "goals_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       tasks: {
         Row: {
           archived_at: string | null
@@ -1259,6 +1262,34 @@ export type Database = {
           transfer_notes?: string
         }
         Returns: string
+      }
+      delete_empty_school_course: {
+        Args: { owned_course_id: string }
+        Returns: undefined
+      }
+      delete_empty_school_term: {
+        Args: { owned_term_id: string }
+        Returns: undefined
+      }
+      delete_finance_budget: {
+        Args: { owned_budget_id: string }
+        Returns: undefined
+      }
+      delete_recurring_bill: {
+        Args: { owned_bill_id: string }
+        Returns: undefined
+      }
+      delete_recurring_income: {
+        Args: { owned_income_id: string }
+        Returns: undefined
+      }
+      delete_unused_finance_account: {
+        Args: { owned_account_id: string }
+        Returns: undefined
+      }
+      replace_course_meetings: {
+        Args: { meeting_rows: Json; owned_course_id: string }
+        Returns: number
       }
       save_calendar_event_reminders: {
         Args: { reminder_offsets?: number[]; target_event_id: string }

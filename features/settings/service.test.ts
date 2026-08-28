@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AuthenticatedAppContext } from "@/features/shared/server-context";
 import { getCalendarContext } from "@/features/calendar/queries";
-import { updateCalendarPreference, updateProfilePreferences } from "./service";
+import { updateCalendarPreference, updateProfilePreferences, updateThemePreference } from "./service";
 
 function contextWith(result: { data: unknown; error: unknown }) {
   const maybeSingle = vi.fn(async () => result); const select = vi.fn(() => ({ maybeSingle })); const eq = vi.fn(() => ({ select })); const update = vi.fn(() => ({ eq })); const from = vi.fn(() => ({ update }));
-  const context = { user: { id: "user-a", email: "a@example.com", displayName: null }, profile: { currency: "CAD", timezone: "America/Toronto", week_starts_on: 0, calendar_default_view: "month" }, timeZone: "America/Toronto", today: "2026-08-28", supabase: { from } } as unknown as AuthenticatedAppContext;
+  const context = { user: { id: "user-a", email: "a@example.com", displayName: null }, profile: { currency: "CAD", timezone: "America/Toronto", week_starts_on: 0, calendar_default_view: "month", theme_preference: "system" }, timeZone: "America/Toronto", today: "2026-08-28", supabase: { from } } as unknown as AuthenticatedAppContext;
   return { context, from, update, eq };
 }
 
@@ -33,6 +33,15 @@ describe("Settings preference services", () => {
     expect(await updateCalendarPreference({ defaultView: "agenda", userId: "user-b" }, mock.context)).toEqual({ ok: true, data: { defaultView: "agenda" } });
     expect(mock.update).toHaveBeenCalledWith({ calendar_default_view: "agenda" }); expect(mock.eq).toHaveBeenCalledWith("id", "user-a");
     expect(await updateCalendarPreference({ defaultView: "timeline" }, mock.context)).toMatchObject({ ok: false, error: { code: "validation" } });
+  });
+  it("persists only supported appearance preferences on the owned profile", async () => {
+    const mock = contextWith({ data: { theme_preference: "dark" }, error: null });
+    expect(await updateThemePreference({ theme: "dark", userId: "user-b" }, mock.context)).toEqual({ ok: true, data: { theme: "dark" } });
+    expect(mock.update).toHaveBeenCalledWith({ theme_preference: "dark" });
+    expect(mock.eq).toHaveBeenCalledWith("id", "user-a");
+    const invalid = contextWith({ data: null, error: null });
+    expect(await updateThemePreference({ theme: "sepia" }, invalid.context)).toMatchObject({ ok: false, error: { code: "validation" } });
+    expect(invalid.from).not.toHaveBeenCalled();
   });
   it("returns a structured safe failure for database errors", async () => {
     const mock = contextWith({ data: null, error: { message: "raw database detail" } });

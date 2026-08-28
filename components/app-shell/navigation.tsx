@@ -83,7 +83,7 @@ export function DesktopSidebar({ email, displayName }: { email: string | null; d
           </div>
         </div>
         <form action={logout}>
-          <Button className="w-full justify-start" type="submit" variant="ghost"><LogOut /> Sign out</Button>
+          <Button className="w-full justify-start" type="submit" variant="ghost"><LogOut /> Log out</Button>
         </form>
       </div>
     </aside>
@@ -108,7 +108,7 @@ export function MobileHeader({ displayName }: { displayName: string | null }) {
           <div className="my-1 border-t" />
           {navigationItems.slice(3).map((item) => <NavLink item={item} key={item.href} />)}
           <form action={logout} className="mt-1 border-t pt-1">
-            <Button className="w-full justify-start" type="submit" variant="ghost"><LogOut /> Sign out</Button>
+            <Button className="w-full justify-start" type="submit" variant="ghost"><LogOut /> Log out</Button>
           </form>
         </div>
       </details>

@@ -85,14 +85,15 @@ export async function getCourseDetail(id: string) {
 
 export async function getSchoolArchives() {
   const { supabase } = await getAuthenticatedAppContext();
-  const [termResult, courseResult, assessmentResult] = await Promise.all([
+  const [termResult, courseResult, assessmentResult, resourceResult] = await Promise.all([
     supabase.from("academic_terms").select("*").order("start_date", { ascending: false }),
     supabase.from("courses").select("*").order("code"),
     supabase.from("assessments").select("*").not("archived_at", "is", null).order("archived_at", { ascending: false }),
+    supabase.from("course_resources").select("*").not("archived_at", "is", null).order("archived_at", { ascending: false }),
   ]);
-  const error = termResult.error ?? courseResult.error ?? assessmentResult.error;
+  const error = termResult.error ?? courseResult.error ?? assessmentResult.error ?? resourceResult.error;
   if (error) throw new Error(error.message);
   const terms = termResult.data ?? [];
   const courses = courseResult.data ?? [];
-  return { terms: terms.filter((term) => term.archived_at), courses: courses.filter((course) => course.archived_at), assessments: assessmentResult.data ?? [], allTerms: new Map(terms.map((term) => [term.id, term])), allCourses: new Map(courses.map((course) => [course.id, course])) };
+  return { terms: terms.filter((term) => term.archived_at), courses: courses.filter((course) => course.archived_at), assessments: assessmentResult.data ?? [], resources: resourceResult.data ?? [], allTerms: new Map(terms.map((term) => [term.id, term])), allCourses: new Map(courses.map((course) => [course.id, course])) };
 }

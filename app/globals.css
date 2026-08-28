@@ -96,7 +96,6 @@
   --sidebar-ring: #9865a9;
 }
 
-/* A future dark theme can override the same semantic contract. */
 .dark {
   --background: #151217;
   --foreground: #f8f5f9;
@@ -113,6 +112,10 @@
   --accent: #3a2b40;
   --accent-foreground: #f8f5f9;
   --destructive: #f1788c;
+  --success: #65d39a;
+  --warning: #f0b76d;
+  --financial-positive: #65d39a;
+  --financial-negative: #f1788c;
   --border: #3c3440;
   --input: #4b4050;
   --ring: #c297d0;
@@ -124,6 +127,7 @@
   --sidebar-accent-foreground: #f8f5f9;
   --sidebar-border: #3c3440;
   --sidebar-ring: #c297d0;
+  color-scheme: dark;
 }
 
 @layer base {

@@ -1,11 +1,17 @@
+import { Suspense } from "react";
 import { DesktopSidebar, MobileBottomNav, MobileHeader } from "@/components/app-shell/navigation";
-import { requireAuthenticatedUser } from "@/lib/auth/user";
+import { ThemeSync } from "@/components/theme-sync";
+import { MutationToasts } from "@/components/ui/mutation-toasts";
+import { getAuthenticatedAppContext } from "@/features/shared/server-context";
 
 export default async function ApplicationLayout({ children }: { children: React.ReactNode }) {
-  const user = await requireAuthenticatedUser();
+  const context = await getAuthenticatedAppContext();
+  const user = context.user;
 
   return (
     <div className="min-h-svh bg-background">
+      <ThemeSync preference={context.profile.theme_preference as "system" | "light" | "dark"} />
+      <Suspense><MutationToasts /></Suspense>
       <DesktopSidebar displayName={user.displayName} email={user.email} />
       <MobileHeader displayName={user.displayName} />
       <div className="md:pl-64">

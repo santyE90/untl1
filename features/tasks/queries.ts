@@ -11,7 +11,7 @@ export async function getTasks(options: { context?: AuthenticatedAppContext; sch
   const context = options.context ?? await getAuthenticatedAppContext();
   const supabase = context.supabase;
   const [taskResult, goalResult, school] = await Promise.all([
-    supabase.from("tasks").select("*").is("archived_at", null),
+    supabase.from("tasks").select("*"),
     supabase.from("goals").select("id,title,status").is("archived_at", null).order("title"),
     options.school ?? getSchoolOverview(context),
   ]);
@@ -27,7 +27,7 @@ export async function getTasks(options: { context?: AuthenticatedAppContext; sch
     const goal = task.goal_id ? goals.get(task.goal_id) : null;
     return { ...task, assessment: assessment && course ? { id: assessment.id, name: assessment.name, courseId: course.id, courseCode: course.code } : null, goal: goal ? { id: goal.id, title: goal.title } : null };
   });
-  return { tasks, timezone, today: context.today, goalOptions: goalResult.data ?? [], assessmentOptions: school.assessments.map((assessment) => ({ id: assessment.id, name: assessment.name, timingType: assessment.timing_type, dueAt: assessment.due_at, startsAt: assessment.starts_at, eventDate: assessment.event_date, course: courses.get(assessment.course_id) })).filter((option) => option.course) };
+  return { tasks: tasks.filter((task) => !task.archived_at), archivedTasks: tasks.filter((task) => task.archived_at), timezone, today: context.today, goalOptions: goalResult.data ?? [], assessmentOptions: school.assessments.map((assessment) => ({ id: assessment.id, name: assessment.name, timingType: assessment.timing_type, dueAt: assessment.due_at, startsAt: assessment.starts_at, eventDate: assessment.event_date, course: courses.get(assessment.course_id) })).filter((option) => option.course) };
 }
 
 export async function getTaskSummary(options: { context?: AuthenticatedAppContext; school?: SchoolOverview } = {}) {

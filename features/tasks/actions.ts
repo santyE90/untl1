@@ -32,7 +32,14 @@ export async function setTaskStatus(formData: FormData) {
 export async function archiveTask(formData: FormData) {
   const context = await getAuthenticatedAppContext();
   const { data, error } = await context.supabase.from("tasks").update({ archived_at: new Date().toISOString() }).eq("id", text(formData, "id")).eq("user_id", context.user.id).select("id").maybeSingle();
-  if (error) fail(error.message);
+  if (error) fail("The task could not be archived.");
   if (!data) fail("Task is unavailable.");
   done("Task archived.");
+}
+
+export async function restoreTask(formData: FormData) {
+  const context = await getAuthenticatedAppContext();
+  const { data, error } = await context.supabase.from("tasks").update({ archived_at: null }).eq("id", text(formData, "id")).eq("user_id", context.user.id).select("id").maybeSingle();
+  if (error || !data) fail("The task could not be restored.");
+  done("Task restored.");
 }

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { updateCalendarPreference, updateProfilePreferences } from "./service";
+import { updateCalendarPreference, updateProfilePreferences, updateThemePreference } from "./service";
 
 const text = (formData: FormData, name: string) => String(formData.get(name) ?? "");
 function destination(kind: "success" | "error", section: string, message: string): never { redirect(`/settings?${kind}=${encodeURIComponent(message)}&section=${section}#${section}`); }
@@ -19,4 +19,11 @@ export async function saveCalendarPreference(formData: FormData) {
   if (!result.ok) destination("error", "calendar", result.error.message);
   revalidatePath("/settings"); revalidatePath("/calendar", "layout");
   destination("success", "calendar", "Calendar preference saved.");
+}
+
+export async function saveThemePreference(formData: FormData) {
+  const result = await updateThemePreference({ theme: text(formData, "theme") });
+  if (!result.ok) destination("error", "appearance", result.error.message);
+  revalidatePath("/", "layout");
+  destination("success", "appearance", "Appearance preference saved.");
 }

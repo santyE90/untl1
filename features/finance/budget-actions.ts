@@ -46,8 +46,19 @@ export async function saveMonthlyBudget(formData: FormData) {
     budget_notes: parsed.data.notes ?? undefined,
     category_limits: categoryLimits,
   });
-  if (error) fail(error.message, month);
+  if (error) fail("The budget could not be saved. Check its currency, amounts, and categories.", month);
 
   revalidatePath("/finance", "layout");
   redirect(`/finance/budget?month=${parsed.data.month}&currency=${parsed.data.currency}&success=${encodeURIComponent("Budget saved.")}`);
+}
+
+export async function deleteMonthlyBudget(formData: FormData) {
+  const month = String(formData.get("month") ?? "");
+  const budgetId = String(formData.get("id") ?? "");
+  await requireAuthenticatedUser();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("delete_finance_budget", { owned_budget_id: budgetId });
+  if (error) fail("The monthly budget could not be deleted.", month);
+  revalidatePath("/finance", "layout");
+  redirect(`/finance/budget?month=${encodeURIComponent(month)}&success=${encodeURIComponent("Monthly budget permanently deleted.")}`);
 }

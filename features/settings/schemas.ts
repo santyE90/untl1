@@ -8,3 +8,4 @@ export const generalPreferencesSchema = z.object({
 });
 
 export const calendarPreferenceSchema = z.object({ defaultView: z.enum(["month", "week", "day", "agenda"]) });
+export const themePreferenceSchema = z.object({ theme: z.enum(["system", "light", "dark"]) });

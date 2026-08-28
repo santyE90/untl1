@@ -25,6 +25,20 @@ export const accountSchema = z.object({
   if (data.accountType !== "credit_card" && data.creditLimit) context.addIssue({ code: "custom", path: ["creditLimit"], message: "Credit limits only apply to credit cards." });
 });
 
+export const accountUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  accountType: z.enum(["chequing", "savings", "credit_card", "cash", "investment", "other"]),
+  customTypeName: optionalText(40),
+  institution: optionalText(100),
+  creditLimit: optionalText(30),
+  includeInNetWorth: z.boolean(),
+}).superRefine((data, context) => {
+  if (data.accountType === "other" && !data.customTypeName) context.addIssue({ code: "custom", path: ["customTypeName"], message: "Name the custom account type." });
+  if (data.accountType !== "other" && data.customTypeName) context.addIssue({ code: "custom", path: ["customTypeName"], message: "Custom type only applies to Other." });
+  if (data.creditLimit && (!/^\d{1,15}(?:\.\d{1,4})?$/.test(data.creditLimit) || parseMoney(data.creditLimit) <= BigInt(0))) context.addIssue({ code: "custom", path: ["creditLimit"], message: "Credit limit must be positive." });
+  if (data.accountType !== "credit_card" && data.creditLimit) context.addIssue({ code: "custom", path: ["creditLimit"], message: "Credit limits only apply to credit cards." });
+});
+
 export const categorySchema = z.object({
   name: z.string().trim().min(1).max(60),
   categoryType: z.enum(["expense", "income", "both"]),
