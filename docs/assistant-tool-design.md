@@ -1,6 +1,6 @@
 # LifeStack Assistant tool design
 
-Status: Phase 7D confirmed Task and native Calendar mutations implemented. The 14 read tools remain active; `create_task`, `update_task`, `set_task_status`, `create_calendar_event`, and `update_calendar_event` are proposal-only model capabilities. Assistant persistence does not exist.
+Status: Phase 7E confirmed Task, native Calendar, and Goal mutations implemented. The 14 read tools remain active; nine mutation functions are proposal-only model capabilities. Assistant persistence does not exist.
 
 ## Phase 7B runtime
 
@@ -192,15 +192,40 @@ These three functions are model-callable in Phase 7C, but calls only create a va
 
 Finance, School, Task, and Goal Calendar items are projections rather than native `calendar_events` rows. Their source IDs cannot authorize native writes and must be edited in their owning domains. Recurring native series and individual occurrences are also rejected. Shared Calendar aggregation and Dashboard queries require no Assistant-specific path.
 
+## Confirmed Goal mutation proposals
+
+All four Goal functions create confirmation proposals and never write inside the model loop. Existing `get_goals`, `get_goal_progress`, and `get_upcoming_goal_deadlines` reads provide candidate IDs and context. An existing mutation requires one exact owned, non-archived Goal; ambiguous matches must be clarified before calling a mutation function.
+
+### `create_goal`
+
+- Purpose/arguments: create one active Goal with title, optional description, fixed category, optional date-only deadline, and an explicit `none`, `percentage`, or `numeric` progress shape.
+- Ownership/service: `createGoal` derives ownership from `AuthenticatedAppContext` and reuses Goal validation through ordinary RLS-bound access. The model never supplies `userId` or audit values.
+- Confirmation: always required. Categories, targets, values, and units may not be invented when materially ambiguous.
+- Result: normalized Goal fields and a trusted Goal reference.
+
+### `update_goal`
+
+- Purpose/arguments: update supported descriptive/deadline fields or explicitly redefine progress mode, current value, target, and unit for one exact Goal. Lifecycle, archive, delete, milestones, batches, and related Tasks are excluded.
+- Ownership/service: `updateGoal` validates a complete merged Goal shape and uses proposal-time `updated_at` for stale protection.
+- Confirmation: always required; before/after values come from authoritative current data and validated arguments.
+- Result/errors: normalized Goal or safe validation, not-found, conflict, or unexpected failure.
+
+### `set_goal_status`
+
+- Purpose/arguments: set exactly one Goal to `completed` or reopen it to `active`.
+- Ownership/service: `setGoalLifecycleStatus` applies the optimistic version and lets the database trigger own `completed_at`.
+- Semantics: archive is not a status. Milestone, Task, or progress completion never invokes this operation automatically.
+
+### `update_goal_progress`
+
+- Purpose/arguments: replace only the current exact decimal value of one already measured percentage or numeric Goal.
+- Ownership/service: the proposal reconstructs and validates the authoritative Goal shape, then confirmation calls `updateGoal` with the stale precondition.
+- Semantics: PostgreSQL numeric and decimal-string projections remain authoritative; values above 100 percent or above a numeric target are preserved and do not complete the Goal. Numeric units are not assumed to be currency.
+- Preview: current and proposed values plus the existing target/unit where applicable.
+
+Successful Goal operations return only normalized structured data and a server-derived `/goals/{id}` reference. The process-local token, cancellation, expiry, one-shot execution, replay rejection, New chat invalidation, observability, and untrusted-content rules are unchanged.
+
 ## Future mutation designs — unavailable
-
-### `create_goal` / `update_goal`
-
-- Purpose/arguments: create or update title, description, category, date-only deadline, status, and exact manual progress fields.
-- Ownership/service: session ownership; adapters over `saveGoal` validation/mutation.
-- Confirmation: explicit intent; confirm completion, archival, large/batch edits, or ambiguous progress replacement.
-- Result: Goal ID, normalized lifecycle, deadline, and exact progress values.
-- Errors: invalid progress-mode shape, invalid date/category, inaccessible Goal, conflict.
 
 ### `create_finance_transaction`
 

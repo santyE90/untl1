@@ -1,6 +1,6 @@
 # LifeStack
 
-LifeStack is a responsive personal-management application built with Next.js 16 and Supabase. It includes authentication, Finance, a source-aware Calendar, deterministic academic planning, Tasks, measurable Goals, and an authenticated Assistant with bounded reads and confirmation-gated Task and native Calendar changes.
+LifeStack is a responsive personal-management application built with Next.js 16 and Supabase. It includes authentication, Finance, a source-aware Calendar, deterministic academic planning, Tasks, measurable Goals, and an authenticated Assistant with bounded reads and confirmation-gated Task, native Calendar, and Goal changes.
 
 [docs/project-architecture.md](docs/project-architecture.md) is the detailed source of truth for schema decisions, ledger semantics, security boundaries, and roadmap.
 
@@ -11,7 +11,7 @@ LifeStack is a responsive personal-management application built with Next.js 16 
 - Supabase Auth and PostgreSQL with RLS
 - Zod, Vitest, Supabase migrations, and pgTAP tests
 
-Assistant Phase 7D preserves 14 bounded reads and Phase 7C Task writes, then adds confirmation-gated creation and editing for owned native non-recurring Calendar events. Model calls create proposals; a separate authenticated one-shot confirmation executes through shared domain services. Conversations are not persisted; see [docs/assistant-tool-design.md](docs/assistant-tool-design.md).
+Assistant Phase 7E preserves 14 bounded reads plus Task and native Calendar writes, then adds confirmation-gated Goal creation, editing, lifecycle, and exact progress updates. Model calls create proposals; a separate authenticated one-shot confirmation executes through shared domain services. Conversations are not persisted; see [docs/assistant-tool-design.md](docs/assistant-tool-design.md).
 
 ## Local setup
 
@@ -55,13 +55,13 @@ supabase/migrations/20260827000700_tasks_core.sql
 supabase/migrations/20260827000800_goals_core.sql
 ```
 
-Assistant Phase 7D has no schema changes and no pending migration. Before a future schema push, inspect the linked dry-run:
+Assistant Phase 7E has no schema changes and no pending migration. Before a future schema push, inspect the linked dry-run:
 
 ```bash
 npm run db:push -- --dry-run
 ```
 
-After any future migration is applied, run `npm run db:types:linked`. No Supabase Dashboard changes are required for Phase 7D.
+After any future migration is applied, run `npm run db:types:linked`. No Supabase Dashboard changes are required for Phase 7E.
 
 ## Quality commands
 
@@ -116,7 +116,7 @@ docs/                durable architecture and project decisions
 
 ## Scope
 
-Implemented through Assistant Phase 7D:
+Implemented through Assistant Phase 7E:
 
 - signup, email confirmation, login/logout, protected sessions, and profiles;
 - responsive desktop/mobile application shell;
@@ -165,5 +165,7 @@ Implemented through Assistant Phase 7D:
 - opaque ten-minute, user-bound, one-shot confirmation tokens with cancel/New chat invalidation and stale-update protection.
 - confirmation-gated `create_calendar_event` and `update_calendar_event` proposals for owned native non-recurring timed and all-day events using shared Calendar services;
 - trusted Calendar previews/references, profile-timezone conversion, projected-source rejection, and optimistic Calendar update protection.
+- confirmation-gated `create_goal`, `update_goal`, `set_goal_status`, and `update_goal_progress` proposals using shared authenticated Goal services;
+- exact decimal-string Goal progress, independent lifecycle semantics, trusted Goal references, and optimistic Goal update protection.
 
-Deferred until later approval: Task archive/delete/recurrence/batches; Calendar recurrence/reminders/archive/delete/occurrence edits; Goal, School, and Finance Assistant writes; persistent chat history/memory; recurring-task occurrence completion; intelligent scheduling; analytics; notifications; external integrations; and Python/ML.
+Deferred until later approval: Task archive/delete/recurrence/batches; Calendar recurrence/reminders/archive/delete/occurrence edits; Goal archive/delete/milestones/batches/automatic cross-domain progress; School and Finance Assistant writes; persistent chat history/memory; recurring-task occurrence completion; intelligent scheduling; analytics; notifications; external integrations; and Python/ML.

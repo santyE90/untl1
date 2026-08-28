@@ -4,61 +4,41 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { assertCalendarDate } from "@/features/calendar/dates";
-import { requireAuthenticatedUser } from "@/lib/auth/user";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthenticatedAppContext } from "@/features/shared/server-context";
 
-import { goalEntityIdSchema, goalSchema, goalStatusSchema, milestoneSchema } from "./schemas";
+import { createGoal, setGoalLifecycleStatus, updateGoal } from "./mutations";
+import { goalEntityIdSchema, milestoneSchema } from "./schemas";
 
 const text = (formData: FormData, name: string) => String(formData.get(name) ?? "");
 function goalsFail(message: string): never { redirect(`/goals?error=${encodeURIComponent(message)}`); }
 function goalFail(id: string, message: string): never { redirect(`/goals/${id}?error=${encodeURIComponent(message)}`); }
 function refreshGoals() { revalidatePath("/goals", "layout"); revalidatePath("/tasks", "layout"); revalidatePath("/calendar", "layout"); revalidatePath("/dashboard"); }
 
-async function context() {
-  const user = await requireAuthenticatedUser();
-  const supabase = await createClient();
-  return { user, supabase };
-}
+const context = getAuthenticatedAppContext;
 
 export async function saveGoal(formData: FormData) {
   const id = text(formData, "id");
   if (id && !goalEntityIdSchema.safeParse(id).success) goalsFail("Goal identifier is invalid.");
-  const parsed = goalSchema.safeParse({
+  const input = {
     title: text(formData, "title"), description: text(formData, "description"), category: text(formData, "category") || "personal",
     status: text(formData, "status") || "active", deadline: text(formData, "deadline"), progressMode: text(formData, "progressMode") || "none",
     currentValue: text(formData, "currentValue"), targetValue: text(formData, "targetValue"), unitLabel: text(formData, "unitLabel"),
-  });
-  if (!parsed.success) goalsFail(parsed.error.issues[0].message);
-  let deadline: string | null = null;
-  try { deadline = parsed.data.deadline ? assertCalendarDate(parsed.data.deadline) : null; }
-  catch (error) { goalsFail(error instanceof Error ? error.message : "Deadline is invalid."); }
-  const { user, supabase } = await context();
-  const data = parsed.data;
-  const row = {
-    title: data.title, description: data.description, category: data.category, status: data.status, deadline,
-    progress_mode: data.progressMode,
-    current_value: (data.progressMode === "none" ? null : data.currentValue) as unknown as number | null,
-    target_value: (data.progressMode === "numeric" ? data.targetValue : null) as unknown as number | null,
-    unit_label: data.progressMode === "numeric" ? data.unitLabel || null : null,
   };
-  const result = id
-    ? await supabase.from("goals").update(row).eq("id", id).eq("user_id", user.id).select("id").single()
-    : await supabase.from("goals").insert({ user_id: user.id, ...row }).select("id").single();
-  if (result.error) goalsFail(result.error.message);
+  const appContext = await context();
+  const result = id ? await updateGoal(id, input, appContext) : await createGoal(input, appContext);
+  if (!result.ok) goalsFail(result.error.message);
   refreshGoals();
   redirect(`/goals/${result.data.id}?success=${encodeURIComponent(id ? "Goal updated." : "Goal created.")}`);
 }
 
 export async function setGoalStatus(formData: FormData) {
   const id = text(formData, "id");
-  const status = goalStatusSchema.safeParse(text(formData, "status"));
-  if (!goalEntityIdSchema.safeParse(id).success || !status.success) goalsFail("Goal lifecycle request is invalid.");
-  const { user, supabase } = await context();
-  const { data, error } = await supabase.from("goals").update({ status: status.data }).eq("id", id).eq("user_id", user.id).select("id").maybeSingle();
-  if (error) goalFail(id, error.message);
-  if (!data) goalFail(id, "Goal is unavailable.");
+  if (!goalEntityIdSchema.safeParse(id).success) goalsFail("Goal lifecycle request is invalid.");
+  const status = text(formData, "status");
+  const result = await setGoalLifecycleStatus(id, status, await context());
+  if (!result.ok) goalFail(id, result.error.message);
   refreshGoals();
-  redirect(`/goals/${id}?success=${encodeURIComponent(status.data === "completed" ? "Goal completed." : "Goal reopened.")}`);
+  redirect(`/goals/${id}?success=${encodeURIComponent(status === "completed" ? "Goal completed." : "Goal reopened.")}`);
 }
 
 export async function archiveGoal(formData: FormData) {

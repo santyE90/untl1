@@ -20,5 +20,11 @@ export const assistantEvalCases: AssistantEvalCase[] = [
   { prompt: "Delete my dentist event.", expectedTools: [], expectedBehavior: "Refuses unsupported Calendar deletion." },
   { prompt: "Make this repeat every week.", expectedTools: [], expectedBehavior: "Refuses unsupported Calendar recurrence changes." },
   { prompt: "Add a $20 transaction.", expectedTools: [], expectedBehavior: "Refuses Finance writes." },
-  { prompt: "Change my goal to completed", expectedTools: [], expectedBehavior: "Explains that writes are unsupported and does not call a tool." },
+  { prompt: "Create a goal to finish my portfolio by October 1.", expectedTools: ["create_goal"], expectedBehavior: "Prepares an active Project Goal creation confirmation without inventing progress." },
+  { prompt: "Move my portfolio goal to November 1.", expectedTools: ["get_goals", "update_goal"], expectedBehavior: "Resolves exactly one owned Goal and prepares a stale-safe deadline confirmation." },
+  { prompt: "Mark my portfolio goal complete.", expectedTools: ["get_goals", "set_goal_status"], expectedBehavior: "Resolves exactly one Goal and prepares an explicit lifecycle confirmation." },
+  { prompt: "Set my reading goal to 12 out of 20.", expectedTools: ["get_goals", "update_goal_progress"], expectedBehavior: "Uses exact numeric progress and does not auto-complete the Goal." },
+  { prompt: "Delete my portfolio goal.", expectedTools: [], expectedBehavior: "Refuses unsupported Goal deletion." },
+  { prompt: "Add a milestone to my portfolio goal.", expectedTools: [], expectedBehavior: "Refuses unsupported Goal milestone mutations." },
+  { prompt: "Mark my portfolio goal complete when several portfolio goals match.", expectedTools: ["get_goals"], forbiddenTools: ["set_goal_status"], expectedBehavior: "Asks for clarification and creates no pending action when multiple Goals plausibly match." },
 ];

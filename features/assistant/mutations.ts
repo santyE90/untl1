@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const assistantMutationNameSchema = z.enum(["create_task", "update_task", "set_task_status", "create_calendar_event", "update_calendar_event"]);
+export const assistantMutationNameSchema = z.enum(["create_task", "update_task", "set_task_status", "create_calendar_event", "update_calendar_event", "create_goal", "update_goal", "set_goal_status", "update_goal_progress"]);
 export type AssistantMutationName = z.infer<typeof assistantMutationNameSchema>;
 
 const nullableId = z.string().uuid().nullable();
@@ -50,6 +50,24 @@ export const updateCalendarEventProposalSchema = z.object({ eventId: z.string().
   if ((value.startsAtLocal === undefined) !== (value.endsAtLocal === undefined)) context.addIssue({ code: "custom", message: "Changing a timed event requires both start and end times." });
   if ((value.startDate === undefined) !== (value.endDate === undefined)) context.addIssue({ code: "custom", message: "Changing an all-day event requires both start and end dates." });
 });
+
+const goalCategory = z.enum(["finance", "school", "career", "personal", "health_fitness", "project", "other"]);
+const goalProgressMode = z.enum(["none", "percentage", "numeric"]);
+const goalProgressShape = { progressMode: goalProgressMode, currentValue: z.string().nullable(), targetValue: z.string().nullable(), unitLabel: z.string().max(40).nullable() };
+const checkGoalProgressShape = (value: { progressMode: z.infer<typeof goalProgressMode>; currentValue?: string | null; targetValue?: string | null; unitLabel?: string | null }, context: z.RefinementCtx) => {
+  if (value.progressMode === "none" && (value.currentValue || value.targetValue || value.unitLabel)) context.addIssue({ code: "custom", message: "Unmeasured Goals cannot include progress values." });
+  if (value.progressMode === "percentage" && (!value.currentValue || value.targetValue || value.unitLabel)) context.addIssue({ code: "custom", message: "Percentage Goals require only a current percentage." });
+  if (value.progressMode === "numeric" && (!value.currentValue || !value.targetValue)) context.addIssue({ code: "custom", message: "Numeric Goals require current and target values." });
+};
+
+export const createGoalProposalSchema = z.object({ title: z.string().trim().min(1).max(200), description: z.string().max(10000).nullable(), category: goalCategory, deadline: z.string().nullable(), ...goalProgressShape }).strict().superRefine(checkGoalProgressShape);
+export const updateGoalProposalSchema = z.object({ goalId: z.string().uuid(), title: z.string().trim().min(1).max(200).optional(), description: z.string().max(10000).nullable().optional(), category: goalCategory.optional(), deadline: z.string().nullable().optional(), progressMode: goalProgressMode.optional(), currentValue: z.string().nullable().optional(), targetValue: z.string().nullable().optional(), unitLabel: z.string().max(40).nullable().optional() }).strict().superRefine((value, context) => {
+  if (Object.keys(value).length === 1) context.addIssue({ code: "custom", message: "At least one Goal field must change." });
+  if (value.progressMode === undefined && (value.currentValue !== undefined || value.targetValue !== undefined || value.unitLabel !== undefined)) context.addIssue({ code: "custom", message: "progressMode is required when changing the Goal progress configuration." });
+  if (value.progressMode !== undefined) checkGoalProgressShape(value as typeof value & { progressMode: z.infer<typeof goalProgressMode> }, context);
+});
+export const setGoalStatusProposalSchema = z.object({ goalId: z.string().uuid(), status: z.enum(["active", "completed"]) }).strict();
+export const updateGoalProgressProposalSchema = z.object({ goalId: z.string().uuid(), currentValue: z.string() }).strict();
 
 export const assistantConfirmationRequestSchema = z.object({ token: z.string().min(32).max(160) }).strict();
 export type AssistantMutationPreview = { operation: AssistantMutationName; actionLabel: string; subjectTitle: string; changes: { label: string; before?: string; after: string }[] };

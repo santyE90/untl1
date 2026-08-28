@@ -1,10 +1,10 @@
 # LifeStack: Project Architecture
 
-Status: Finance through Phase 2C, Calendar through Phase 3B, School through Phase 4B, Tasks Phase 5A, Goals Phase 5B, Phase 6, and Assistant Phases 7A–7C accepted; Assistant Phase 7D implemented locally
+Status: Finance through Phase 2C, Calendar through Phase 3B, School through Phase 4B, Tasks Phase 5A, Goals Phase 5B, Phase 6, and Assistant Phases 7A–7D accepted; Assistant Phase 7E implemented locally
 
-Last reviewed: 2026-08-27
+Last reviewed: 2026-08-28
 
-Current boundary: Complete Assistant Phase 7D native Calendar create/update mutations while preserving Phase 7C Task mutations. Do not add archive/delete, recurrence, reminders, batch changes, Goal, School, or Finance mutations, persistence/memory, intelligent scheduling, external integrations, Python, or ML.
+Current boundary: Complete Assistant Phase 7E Goal mutations while preserving Task and native Calendar writes. Do not add archive/delete, milestone or batch changes, automatic cross-domain progress, School or Finance mutations, persistence/memory, intelligent scheduling, external integrations, Python, or ML.
 
 This is the durable architectural source of truth for LifeStack. It records decisions that future implementation sessions must preserve.
 
@@ -769,3 +769,27 @@ An update proposal requires an exact event ID, but IDs are references rather tha
 Validated Calendar arguments and the authoritative current snapshot produce the confirmation card; model-authored prose is not trusted preview data. Updates store proposal-time `updated_at`. Confirmation consumes the opaque user-bound token before execution, then the shared service verifies the row and applies the same optimistic value to its update query. A manual intervening edit causes a conflict and requires a fresh proposal. Tokens remain ten-minute, one-shot, cancellable, replay-resistant, process-local values; failed writes are not retried automatically.
 
 Successful Calendar writes return normalized event fields and a server-derived `/calendar/events/{id}` reference that passes the same-origin allowlist. Telemetry records only operation/state/request correlation/duration/safe error class. Titles, descriptions, locations, arguments, user IDs, and provider payloads are excluded. No schema, migration, database type generation, conversation persistence, or new OpenAI privilege is introduced in Phase 7D.
+
+## 23. Assistant Phase 7E: confirmed Goal mutations
+
+Phase 7E adds proposal-only `create_goal`, `update_goal`, `set_goal_status`, and `update_goal_progress` functions while retaining all 14 reads and the Phase 7C/7D Task and native Calendar writes. Every operation uses the existing confirmation protocol. Goal archive/delete, milestone changes, batch operations, Task side effects, and automatic Finance/School progress are absent; School and Finance remain read-only.
+
+### 23.1 Shared Goal mutation services
+
+`features/goals/mutations.ts` owns Goal validation, creation, full supported-field update, and lifecycle changes. Existing Goal form Server Actions delegate to these services while milestone and archive actions retain their established manual-only paths. Services receive `AuthenticatedAppContext`, derive `user_id`, use the ordinary RLS-bound client, reuse `goalSchema` and date-only validation, return `ServiceResult`, and optionally enforce proposal-time `updated_at`. Manual edits retain existing archived-record behavior; Assistant proposals accept only non-archived Goals and confirmation rechecks active state when an optimistic version is supplied.
+
+Goal status remains `active` or `completed`, with archive separate. The database lifecycle trigger remains authoritative for `completed_at`. `set_goal_status` is the only Assistant lifecycle operation, so progress, milestones, and related Tasks never complete or reopen a Goal implicitly.
+
+### 23.2 Exact progress model
+
+Goal progress modes remain `none`, `percentage`, and `numeric`. The Assistant passes current and target values as validated decimal strings with at most four decimal places; the shared service writes them to PostgreSQL `numeric(20,4)` and returns generated decimal-string projections. It never performs authoritative progress arithmetic with JavaScript floating point. Numeric values may exceed their target, percentages may exceed 100, and neither case changes lifecycle status. Unit labels remain presentation metadata and are never assumed to be currency.
+
+`update_goal_progress` is deliberately separate from `update_goal`: it changes only the current exact value of an already measured Goal and produces a current/target preview. `update_goal` owns title, description, category, date-only deadline, and explicit progress-configuration changes such as mode/target/unit. This avoids conflating routine progress entry with target redefinition while both reuse the same validated full Goal mutation service.
+
+### 23.3 Resolution, confirmation, and projections
+
+Existing Goal reads resolve candidates. A mutation requires an exact owned, non-archived Goal ID; zero or multiple plausible conversational matches produce no proposal. IDs are references rather than authorization and are revalidated through RLS. Stored titles and descriptions remain untrusted data and can only populate sanitized previews.
+
+Exact normalized arguments and authoritative before-values are stored behind the same opaque ten-minute, user-bound, cancellable, one-shot token. Goal updates, status changes, and progress changes carry `updated_at`; an intervening manual edit or archive causes a conflict/not-found response and requires a new proposal. Successful results receive a server-derived `/goals/{id}` reference. Privacy-safe telemetry records operation/state/request correlation/duration/error class but not Goal content or arguments.
+
+Goal remains authoritative for its date and lifecycle. Existing Goal-to-Calendar projection and Dashboard summary services observe confirmed deadline, status, and progress changes naturally; no Calendar row or Assistant-specific Dashboard state is created. Phase 7E introduces no schema migration, generated-type change, conversation persistence, or new hosted configuration.

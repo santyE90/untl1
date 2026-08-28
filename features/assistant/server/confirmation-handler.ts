@@ -32,13 +32,14 @@ export async function handleAssistantConfirmation(request: Request, dependencies
   const proposedOperation = pendingMutationOperation(checked.token, checked.context.user.id) ?? "assistant_mutation";
   checked.observe({ requestId: checked.requestId, userCorrelation: userCorrelation(checked.context.user.id), operation: proposedOperation, state: "confirmed", durationMs: Date.now() - started });
   const result = await (dependencies.consume ?? consumePendingMutation)(checked.token, checked.context);
-  const operation = result.ok ? result.data.operation : "assistant_mutation";
+  const operation = result.ok ? result.data.operation : proposedOperation;
   checked.observe({ requestId: checked.requestId, userCorrelation: userCorrelation(checked.context.user.id), operation, state: result.ok ? "succeeded" : "failed", durationMs: Date.now() - started, ...(!result.ok ? { errorCode: result.error.code } : {}) });
   if (!result.ok) return response({ ok: false, error: result.error }, result.error.code === "conflict" ? 409 : result.error.code === "not_found" ? 404 : result.error.code === "validation" ? 400 : 500, checked.requestId);
   revalidatePath("/tasks", "layout"); revalidatePath("/goals", "layout"); revalidatePath("/calendar", "layout"); revalidatePath("/dashboard");
   const entity = result.data.entity;
   const calendar = result.data.operation === "create_calendar_event" || result.data.operation === "update_calendar_event";
-  const reference = trustedReference(calendar ? { type: "calendar", id: entity.id, label: entity.title, href: `/calendar/events/${entity.id}` } : { type: "task", id: entity.id, label: entity.title, href: `/tasks?task=${entity.id}#task-${entity.id}` });
+  const goal = result.data.operation === "create_goal" || result.data.operation === "update_goal" || result.data.operation === "set_goal_status" || result.data.operation === "update_goal_progress";
+  const reference = trustedReference(calendar ? { type: "calendar", id: entity.id, label: entity.title, href: `/calendar/events/${entity.id}` } : goal ? { type: "goal", id: entity.id, label: entity.title, href: `/goals/${entity.id}` } : { type: "task", id: entity.id, label: entity.title, href: `/tasks?task=${entity.id}#task-${entity.id}` });
   return response({ ok: true, operation: result.data.operation, entity, references: reference ? [reference] : [] }, 200, checked.requestId);
 }
 

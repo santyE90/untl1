@@ -8,6 +8,7 @@ import type { TaskWithContext } from "@/features/tasks/types";
 import { createTaskProposalSchema, setTaskStatusProposalSchema, updateTaskProposalSchema, type AssistantMutationPreview } from "../mutations";
 import { registerPendingTaskMutation } from "./pending-mutations";
 import { proposeAssistantCalendarMutation } from "./calendar-mutation-proposals";
+import { proposeAssistantGoalMutation } from "./goal-mutation-proposals";
 
 type ProposalResult = { ok: true; confirmation: ReturnType<typeof registerPendingTaskMutation> } | { ok: false; error: { code: string; message: string } };
 const error = (code: string, message: string): ProposalResult => ({ ok: false, error: { code, message } });
@@ -70,5 +71,7 @@ export async function proposeAssistantTaskMutation(name: string, rawArguments: s
 }
 
 export async function proposeAssistantMutation(name: string, rawArguments: string, context: AuthenticatedAppContext) {
-  return name === "create_calendar_event" || name === "update_calendar_event" ? proposeAssistantCalendarMutation(name, rawArguments, context) : proposeAssistantTaskMutation(name, rawArguments, context);
+  if (name === "create_calendar_event" || name === "update_calendar_event") return proposeAssistantCalendarMutation(name, rawArguments, context);
+  if (name === "create_goal" || name === "update_goal" || name === "set_goal_status" || name === "update_goal_progress") return proposeAssistantGoalMutation(name, rawArguments, context);
+  return proposeAssistantTaskMutation(name, rawArguments, context);
 }

@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(51);
+select plan(53);
 
 select has_table('public', 'goals', 'goals table exists');
 select has_table('public', 'goal_milestones', 'goal milestones table exists');
@@ -51,6 +51,7 @@ select lives_ok($$ update public.goals set archived_at = now() where title = 'Ex
 select ok((select archived_at is not null from public.goals where title = 'Exact goal'), 'goal archive timestamp is stored');
 select throws_ok($$ delete from public.goals where id = '6a400000-0000-4000-8000-000000000001' $$, '42501', 'permission denied for table goals', 'hard goal deletion is not granted');
 select lives_ok($$ update public.goals set title = 'Stolen' where id = '6b400000-0000-4000-8000-000000000002' $$, 'cross-user goal update affects no row');
+select lives_ok($$ update public.goals set status = 'completed' where id = '6b400000-0000-4000-8000-000000000002' $$, 'user A cannot complete user B goal');
 select throws_ok($$ insert into public.goals (user_id, title) values ('6b000000-0000-4000-8000-000000000002', 'Forged goal') $$, '42501', 'new row violates row-level security policy for table "goals"', 'user A cannot create a goal as user B');
 select throws_ok($$ update public.goals set user_id = '6b000000-0000-4000-8000-000000000002' where id = '6a400000-0000-4000-8000-000000000001' $$, '42501', 'permission denied for table goals', 'goal ownership cannot be reassigned');
 select throws_ok($$ insert into public.goals (user_id, title, progress_mode, current_value, target_value) values ('6a000000-0000-4000-8000-000000000001', 'Zero target', 'numeric', 0, 0) $$, '23514', null, 'numeric target must be greater than zero');
@@ -78,6 +79,7 @@ reset role;
 set local role authenticated;
 set local request.jwt.claim.sub = '6b000000-0000-4000-8000-000000000002';
 select is((select title from public.goals where id = '6b400000-0000-4000-8000-000000000002'), 'B goal', 'user B goal was unchanged');
+select is((select status from public.goals where id = '6b400000-0000-4000-8000-000000000002'), 'active', 'user B goal lifecycle was unchanged');
 select is((select title from public.goal_milestones where id = '6b500000-0000-4000-8000-000000000002'), 'B milestone', 'user B milestone was unchanged');
 
 reset role;

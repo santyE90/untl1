@@ -12,7 +12,7 @@ describe("Assistant tool surface", () => {
     expect(names).toEqual(["get_today_overview", "get_upcoming_calendar", "get_finance_summary", "get_upcoming_bills", "get_cash_flow_projection", "get_courses", "get_upcoming_assessments", "get_course_standing", "get_tasks", "get_tasks_due_today", "get_overdue_tasks", "get_goals", "get_goal_progress", "get_upcoming_goal_deadlines"]);
     expect(JSON.stringify(assistantToolDefinitions)).not.toMatch(/user_?id/i);
     expect(names.some((name) => /create|update|complete|archive|delete|transfer|budget/.test(name))).toBe(false);
-    expect(assistantInstructions).toContain("create_calendar_event, and update_calendar_event");
+    expect(assistantInstructions).toContain("create_goal, update_goal, set_goal_status, and update_goal_progress");
     expect(assistantInstructions).toContain("Refuse archive/delete");
   });
 
