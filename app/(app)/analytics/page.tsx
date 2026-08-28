@@ -1,10 +1,58 @@
 import type { Metadata } from "next";
-import { BarChart3 } from "lucide-react";
+import Link from "next/link";
+import { BarChart3, CheckCircle2, GraduationCap, Target, WalletCards } from "lucide-react";
 
-import { UpcomingSection } from "@/components/app-shell/upcoming-section";
+import { CourseStandingChart, FinanceTrendChart, TaskTrendChart } from "@/features/analytics/analytics-charts";
+import { analyticsRangeOptions } from "@/features/analytics/date-range";
+import { getAnalyticsOverview } from "@/features/analytics/service";
+import { formatMoney } from "@/features/finance/money";
+import { formatPercent, parseExact } from "@/features/school/grades";
 
 export const metadata: Metadata = { title: "Analytics" };
+const panel = "rounded-2xl border bg-card p-5 shadow-sm sm:p-6";
 
-export default function AnalyticsPage() {
-  return <UpcomingSection description="Real analytics will appear only after enough underlying module data exists." icon={BarChart3} title="Analytics" />;
+function Metric({ label, children, detail }: { label: string; children: React.ReactNode; detail?: string }) {
+  return <article className="rounded-xl border bg-card p-4"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p><div className="mt-2 text-2xl font-bold tracking-tight">{children}</div>{detail ? <p className="mt-1 text-xs text-muted-foreground">{detail}</p> : null}</article>;
+}
+
+function SectionLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return <Link className="text-sm font-semibold text-primary underline-offset-4 hover:underline" href={href}>{children}</Link>;
+}
+
+export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ range?: string | string[]; from?: string | string[]; to?: string | string[] }> }) {
+  const query = await searchParams; const data = await getAnalyticsOverview(query);
+  const totalActivity = data.finance.byCurrency.length || data.school.outcomes || data.tasks.created || data.tasks.completed || data.goals.items.length;
+  const bucketLabel = data.range.bucket === "month" ? "Monthly" : data.range.bucket === "week" ? "Weekly" : "Daily";
+  return <div className="space-y-7">
+    <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+      <div><p className="text-sm font-semibold text-primary">Deterministic cross-module overview</p><h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">Analytics</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Transparent trends from authoritative Finance, School, Tasks, and Goals data. No AI-generated scoring.</p></div>
+      <nav aria-label="Analytics date range" className="flex max-w-full gap-2 overflow-x-auto pb-1">{analyticsRangeOptions.map((option) => <Link aria-current={data.rangeSelection.selectedKey === option.key ? "page" : undefined} className={`shrink-0 rounded-full border px-3 py-2 text-xs font-semibold ${data.rangeSelection.selectedKey === option.key ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`} href={option.key === "custom" ? `/analytics?range=custom&from=${data.range.start}&to=${data.range.end}` : `/analytics?range=${option.key}`} key={option.key}>{option.label}</Link>)}</nav>
+    </header>
+
+    {data.rangeSelection.selectedKey === "custom" ? <form className="rounded-2xl border bg-card p-4" method="get"><input name="range" type="hidden" value="custom"/><div className="flex flex-col gap-3 sm:flex-row sm:items-end"><label className="grid gap-1.5 text-sm font-semibold">From<input className="min-h-11 rounded-lg border bg-background px-3 font-normal" defaultValue={data.rangeSelection.customFrom} name="from" required type="date"/></label><label className="grid gap-1.5 text-sm font-semibold">To<input className="min-h-11 rounded-lg border bg-background px-3 font-normal" defaultValue={data.rangeSelection.customTo} name="to" required type="date"/></label><button className="min-h-11 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90" type="submit">Apply range</button></div>{data.rangeSelection.error ? <p className="mt-3 text-sm text-destructive" role="alert">{data.rangeSelection.error}</p> : <p className="mt-3 text-xs text-muted-foreground">Inclusive local calendar dates, up to 366 days.</p>}</form> : null}
+
+    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><span className="rounded-full bg-muted px-3 py-1.5">{data.range.start} → {data.range.end}</span><span>{data.timeZone}</span><span>·</span><span>{bucketLabel} buckets</span></div>
+
+    <section aria-labelledby="overview-heading"><div className="mb-3 flex items-center gap-2"><BarChart3 className="size-5 text-primary"/><h2 className="text-xl font-bold" id="overview-heading">Overview</h2></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <Metric label="Expenses" detail="Posted expenses; currencies remain separate">{data.finance.byCurrency.length ? <span className="space-y-1">{data.finance.byCurrency.map((item) => <span className="block text-lg" key={item.currency}>{formatMoney(item.expenses, item.currency)}</span>)}</span> : "—"}</Metric>
+      <Metric label="Tasks completed" detail={`Created in range: ${data.tasks.created}`}>{data.tasks.completed}</Metric>
+      <Metric label="Assessments graded" detail="Graded assessments dated in range">{data.school.graded}</Metric>
+      <Metric label="Goals completed" detail={`Active now: ${data.goals.active}`}>{data.goals.completed}</Metric>
+    </div>{!totalActivity ? <p className="mt-4 rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">No activity exists in this range yet. Add real data in any LifeStack module and Analytics will derive it here.</p> : null}</section>
+
+    <section className={panel} aria-labelledby="finance-heading">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3"><span className="flex size-10 items-center justify-center rounded-xl bg-accent text-primary"><WalletCards className="size-5"/></span><div><h2 className="text-xl font-bold" id="finance-heading">Finance</h2><p className="text-sm text-muted-foreground">Posted income and expenses only; transfers and other currencies are never blended.</p></div></div><nav aria-label="Finance details" className="flex flex-wrap gap-x-4 gap-y-2"><SectionLink href="/finance/analytics">View Finance analytics</SectionLink><SectionLink href="/finance#transactions">View transactions</SectionLink><SectionLink href="/finance/budget">View budgets</SectionLink></nav></div>
+      {data.finance.byCurrency.length ? <div className="mt-5 space-y-7">{data.finance.byCurrency.map((summary) => <div key={summary.currency}><div className="grid gap-3 sm:grid-cols-4"><Metric label={`Income · ${summary.currency}`}>{formatMoney(summary.income, summary.currency)}</Metric><Metric label={`Expenses · ${summary.currency}`}>{formatMoney(summary.expenses, summary.currency)}</Metric><Metric label={`Net cash flow · ${summary.currency}`}>{formatMoney(summary.netCashFlow, summary.currency)}</Metric><Metric label="Transactions">{summary.transactionCount}</Metric></div><div className="mt-4 rounded-xl border p-3"><h3 className="px-2 pt-1 font-semibold">Income vs expenses · {summary.currency}</h3><FinanceTrendChart currency={summary.currency} data={data.finance.trend.filter((item) => item.currency === summary.currency)}/></div></div>)}</div> : <p className="mt-5 rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">No posted Finance activity in this range.</p>}
+      {data.finance.byCategory.length ? <div className="mt-6 border-t pt-5"><h3 className="font-semibold">Spending by category</h3><div className="mt-3 grid gap-2 md:grid-cols-2">{data.finance.byCategory.slice(0, 8).map((item) => <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm" key={`${item.currency}:${item.categoryId}`}><span className="flex min-w-0 items-center gap-2"><span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color ?? "var(--chart-1)" }}/><span className="truncate">{item.categoryName}</span></span><strong>{formatMoney(item.amount, item.currency)}</strong></div>)}</div></div> : null}
+    </section>
+
+    <section className="grid gap-6 xl:grid-cols-2">
+      <div className={panel}><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><GraduationCap className="size-6 text-primary"/><div><h2 className="text-xl font-bold">School</h2><p className="text-sm text-muted-foreground">Course standings remain distinct.</p></div></div><SectionLink href="/school">View School</SectionLink></div><div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">{data.school.statuses.map((item) => <div className="rounded-lg border p-3" key={item.status}><p className="text-xl font-bold">{item.count}</p><p className="text-xs capitalize text-muted-foreground">{item.status}</p></div>)}</div><div className="mt-4 rounded-xl border p-3"><h3 className="px-2 pt-1 font-semibold">Current completed-work grade by course</h3><CourseStandingChart data={data.school.courseStandings}/></div><div className="mt-3 space-y-1">{data.school.courseStandings.map((course) => <Link className="flex items-center justify-between rounded-lg px-2 py-2 text-sm hover:bg-muted/40" href={`/school/courses/${course.courseId}`} key={course.courseId}><span>{course.code} · {course.name}</span><span className="font-semibold">{course.completedWorkGrade ? formatPercent(parseExact(course.completedWorkGrade)) : "No graded work"}</span></Link>)}</div><div className="mt-4"><SectionLink href="/school/planning">View School planning</SectionLink></div></div>
+      <div className={panel}><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><CheckCircle2 className="size-6 text-primary"/><div><h2 className="text-xl font-bold">Tasks</h2><p className="text-sm text-muted-foreground">Transparent creation and completion counts.</p></div></div><SectionLink href="/tasks">View Tasks</SectionLink></div><div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4"><Metric label="Created">{data.tasks.created}</Metric><Metric label="Completed">{data.tasks.completed}</Metric><Metric label="Overdue now">{data.tasks.currentlyOverdue}</Metric><Metric label="Effort completed">{data.tasks.completedEffortMinutes} min</Metric></div><div className="mt-4 rounded-xl border p-3"><h3 className="px-2 pt-1 font-semibold">Tasks completed over time</h3><TaskTrendChart data={data.tasks.trend}/></div></div>
+    </section>
+
+    <section className={panel} aria-labelledby="goals-heading"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><Target className="size-6 text-primary"/><div><h2 className="text-xl font-bold" id="goals-heading">Goals</h2><p className="text-sm text-muted-foreground">Measured Goals are normalized individually; incompatible progress modes are never averaged.</p></div></div><SectionLink href="/goals">View Goals</SectionLink></div><div className="mt-4 grid gap-3 sm:grid-cols-4"><Metric label="Active">{data.goals.active}</Metric><Metric label="Completed in range">{data.goals.completed}</Metric><Metric label="Due in 30 days">{data.goals.approaching}</Metric><Metric label="Unmeasured">{data.goals.unmeasured}</Metric></div>
+      {data.goals.items.length ? <div className="mt-5 divide-y rounded-xl border">{data.goals.items.map((goal) => <Link className="grid gap-1 p-4 hover:bg-muted/40 sm:grid-cols-[1fr_auto] sm:items-center" href={`/goals/${goal.id}`} key={goal.id}><div><p className="font-semibold">{goal.title}</p><p className="text-xs capitalize text-muted-foreground">{goal.status}{goal.deadline ? ` · Due ${goal.deadline}` : ""}</p></div><p className="text-sm font-medium">{goal.progressLabel ?? "No measured progress"}</p></Link>)}</div> : <p className="mt-5 rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">No Goals yet.</p>}
+    </section>
+  </div>;
 }

@@ -1,10 +1,10 @@
 # LifeStack: Project Architecture
 
-Status: LifeStack Phase 7 complete for V1. Finance through Phase 2C, Calendar through Phase 3B, School through Phase 4B, Tasks Phase 5A, Goals Phase 5B, Phase 6, and Assistant Phases 7A–7F are implemented.
+Status: LifeStack Phase 7 complete for V1; Analytics Phase 8A and its focused custom-range/drill-down follow-up are implemented locally. Finance through Phase 2C, Calendar through Phase 3B, School through Phase 4B, Tasks Phase 5A, Goals Phase 5B, Phase 6, and Assistant Phases 7A–7F are implemented.
 
 Last reviewed: 2026-08-28
 
-Current boundary: Phase 7 is closed. Do not begin Phase 8 or add Finance writes, new School mutation categories, persistence/memory, external integrations, autonomous actions, Python, or ML without a separately approved milestone.
+Current boundary: Review the focused Analytics custom-range/drill-down follow-up. Do not begin Phase 8C, add AI-generated analytics, custom reports/exports, forecasting, snapshots, scoring, or change Phase 7 mutation boundaries without a separately approved milestone.
 
 This is the durable architectural source of truth for LifeStack. It records decisions that future implementation sessions must preserve.
 
@@ -815,3 +815,17 @@ The process-local pending registry and throttle are accepted V1 limitations. Res
 Calendar ownership remains `Native + Finance + School + Tasks + Goals`: only native rows are writable through Calendar tools, while other sources update through their authoritative domains. Profile IANA timezone utilities, date-only database values, inclusive all-day ranges, DST behavior, exact Finance money, exact School grade arithmetic, and decimal-string Goal progress remain domain responsibilities. Finance reads are intentionally retained while every Finance write is excluded for V1 safety.
 
 Phase 7 is complete. Memory, RAG, uploads, voice, external integrations, background/autonomous actions, and additional mutation domains require a future explicitly approved phase.
+
+## 26. Analytics Phase 8A: query-derived cross-module overview
+
+`/analytics` is a protected first-class module backed by `features/analytics/service.ts`. One `AuthenticatedAppContext` supplies the authenticated RLS-bound client, profile IANA timezone, and local current date. The service issues bounded parallel queries for Finance accounts/categories/transactions, Tasks, Goals, and the existing School overview; it performs no per-record queries and accepts no user ID. Analytics owns aggregation DTOs and presentation buckets, while Finance retains transaction meaning, School retains grade semantics, Tasks retains lifecycle meaning, and Goals retains progress semantics.
+
+Supported URL ranges are Last 7 days, Last 30 days (default), Last 90 days, This month, and Previous month. Ranges are inclusive local dates. Seven/thirty-day and month views use daily buckets; the ninety-day view uses deterministic seven-day buckets anchored to the selected range start. Timed Task/Goal lifecycle timestamps are converted to local dates with existing Calendar utilities. Date-only Finance transactions, assessment dates, Goal deadlines, and Task due dates never pass through ad hoc browser UTC conversion.
+
+Finance totals reuse `calculatePeriodAnalytics`: only posted income/expense rows participate, transfers remain excluded, and exact scaled money is serialized only at the DTO boundary. Totals, time series, transaction counts, categories, and largest-expense inputs remain grouped by account currency; no exchange rate or combined currency total exists. School displays assessment status counts for assessments dated in the range and current per-course completed-work standings. Missed work produces an authoritative zero result, exempt work is counted distinctly and excluded from results/weight. Cross-course grades are never averaged.
+
+Tasks report created/completed counts within the range, currently overdue active work, completed effort, priority counts, and deterministic daily/weekly completion buckets. Goals report current active counts, range-completed counts, deadlines in the next thirty days, and individual progress. Percentage and numeric Goal modes may each expose their deterministic normalized percentage per Goal, but incompatible modes are never averaged and unmeasured Goals remain explicit.
+
+Phase 8A stores no summaries, rollups, snapshots, or caches. Charts are responsive Recharts views over deterministic DTOs, with the same values also available in text/cards and explicit empty states. No OpenAI call, Assistant tool, database migration, generated type change, materialized view, service role, or hosted configuration is introduced.
+
+The focused Analytics range/navigation follow-up adds shareable custom URLs in the form `/analytics?range=custom&from=YYYY-MM-DD&to=YYYY-MM-DD`. The server validates real inclusive calendar dates, ordering, and a 366-day maximum; invalid input safely displays the default last-30-day result with an explanatory validation state. Custom ranges of at most 31 days use daily buckets, 32–120 days use seven-day buckets anchored to the range start, and longer accepted ranges use deterministic calendar-month buckets. Analytics remains a summary surface: restrained internal links lead to authoritative Finance, School, Tasks, and Goals routes, including exact course and Goal IDs where available, rather than duplicating domain detail/editing behavior.

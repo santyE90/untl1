@@ -1,6 +1,6 @@
 # LifeStack
 
-LifeStack is a responsive personal-management application built with Next.js 16 and Supabase. It includes authentication, Finance, a source-aware Calendar, deterministic academic planning, Tasks, measurable Goals, and an authenticated Assistant with bounded reads and confirmation-gated Task, native Calendar, Goal, and School assessment changes.
+LifeStack is a responsive personal-management application built with Next.js 16 and Supabase. It includes authentication, Finance, a source-aware Calendar, deterministic academic planning, Tasks, measurable Goals, query-derived cross-module Analytics, and an authenticated Assistant with bounded reads and confirmation-gated Task, native Calendar, Goal, and School assessment changes.
 
 [docs/project-architecture.md](docs/project-architecture.md) is the detailed source of truth for schema decisions, ledger semantics, security boundaries, and roadmap.
 
@@ -55,13 +55,13 @@ supabase/migrations/20260827000700_tasks_core.sql
 supabase/migrations/20260827000800_goals_core.sql
 ```
 
-Assistant Phase 7F has no schema changes and no pending migration. Before a future schema push, inspect the linked dry-run:
+Assistant Phase 7F and Analytics Phase 8A have no schema changes and no pending migration. Before a future schema push, inspect the linked dry-run:
 
 ```bash
 npm run db:push -- --dry-run
 ```
 
-After any future migration is applied, run `npm run db:types:linked`. No Supabase Dashboard changes are required for Phase 7F.
+After any future migration is applied, run `npm run db:types:linked`. No Supabase Dashboard changes are required for Phase 7F or Analytics Phase 8A.
 
 ## Quality commands
 
@@ -116,7 +116,7 @@ docs/                durable architecture and project decisions
 
 ## Scope
 
-Implemented through the completed LifeStack Phase 7:
+Implemented through Analytics Phase 8A plus its focused custom-range/drill-down follow-up:
 
 - signup, email confirmation, login/logout, protected sessions, and profiles;
 - responsive desktop/mobile application shell;
@@ -169,7 +169,9 @@ Implemented through the completed LifeStack Phase 7:
 - exact decimal-string Goal progress, independent lifecycle semantics, trusted Goal references, and optimistic Goal update protection.
 - confirmation-gated `update_assessment`, `set_assessment_score`, `clear_assessment_score`, and `set_assessment_status` proposals using shared authenticated School services;
 - exact School score handling, hypothetical-versus-actual safeguards, trusted assessment references, and optimistic School update protection.
+- protected cross-module Analytics with Last 7/30/90 days, This month, and Previous month ranges;
+- exact currency-separated Finance trends, per-course School standings, Task completion trends, and per-Goal progress with deterministic empty states.
 
-Deferred until later approval: Task archive/delete/recurrence/batches; Calendar recurrence/reminders/archive/delete/occurrence edits; Goal archive/delete/milestones/batches/automatic cross-domain progress; all School writes except the four supported individual assessment operations; all Finance Assistant writes; persistent chat history/memory; recurring-task occurrence completion; intelligent scheduling; analytics; notifications; external integrations; and Python/ML.
+Deferred until later approval: Task archive/delete/recurrence/batches; Calendar recurrence/reminders/archive/delete/occurrence edits; Goal archive/delete/milestones/batches/automatic cross-domain progress; all School writes except the four supported individual assessment operations; all Finance Assistant writes; persistent chat history/memory; recurring-task occurrence completion; intelligent scheduling; advanced analytics, exports, forecasting, and saved reports; notifications; external integrations; and Python/ML.
 
 Phase 7 is complete for LifeStack V1. Finance reads are intentionally available while Finance writes are deliberately excluded. Assistant conversations, throttling, and pending confirmations remain ephemeral/process-local: restart safely invalidates proposals, and multi-instance routing may reject a token created on another instance. Shared short-lived confirmation storage and distributed throttling are future deployment-hardening options.
